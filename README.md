@@ -31,21 +31,28 @@ The automation performs the following operations:
 2. Reads a list of Active Directory organizational units from the corresponding configuration file.
 3. Searches those OUs recursively for computer objects.
 4. Uses the computer operating-system value to separate workstations from servers.
-5. Compares eligible computers against the appropriate Active Directory security group.
-6. Adds computers that are not already members of that group.
-7. Compiles the final group membership into a list of hostnames.
-8. Resolves each hostname against the Qualys Asset Management API.
-9. Accounts for common hostname variations, including:
-   * Lowercase short hostname
-   * Uppercase short hostname
-   * Lowercase fully qualified domain name
-   * Uppercase fully qualified domain name
-10. Collects unique Qualys asset IDs.
-11. Resolves the configured Qualys tag by name.
-12. Applies the tag to all matched assets through a bulk API request.
-13. Writes execution details and summary statistics to a local log.
+5. Builds an authoritative list of computers that should be included in the selected patch-management scope.
+6. Compares that authoritative list against the appropriate Active Directory security group.
+7. Adds eligible computers that are missing from the group.
+8. Removes existing group members that are no longer located within the configured OU scope.
+9. Prevents removals when one or more configured OUs cannot be successfully resolved or queried.
+10. Compiles the reconciled group membership into a list of hostnames.
+11. Resolves current group members against the Qualys Asset Management API.
+12. Resolves computers removed from the AD group so their Qualys tag assignment can also be removed.
+13. Tests four hostname formats for each device:
+    * Lowercase fully qualified domain name
+    * Uppercase fully qualified domain name
+    * Lowercase short hostname
+    * Uppercase short hostname
+14. Collects and deduplicates the returned Qualys asset IDs.
+15. Resolves the configured Qualys patch-management tag by name.
+16. Applies the tag in bulk to assets that remain in the authoritative AD scope.
+17. Removes the tag in bulk from assets that were successfully removed from the AD group.
+18. Writes execution details, reconciliation results, API activity, and summary statistics to a local log.
 
-Qualys patch jobs can then target the assigned workstation or server tag, allowing newly discovered assets to enter the appropriate patch-management workflow without requiring an engineer to manually locate and tag each device.
+This creates a two-way onboarding and offboarding workflow. Newly eligible systems are added to the appropriate Active Directory group and Qualys patch-management tag, while systems that leave the configured OU scope are removed from both.
+
+Qualys patch jobs can target the workstation or server tag, allowing asset membership to remain aligned with the organization’s Active Directory structure without requiring an engineer to manually locate, tag, or untag each device.
 
 ---
 
@@ -69,15 +76,21 @@ The script:
 
 * Loads the encrypted Qualys credential
 * Reads the appropriate OU configuration file
-* Discovers computers in Active Directory
+* Discovers computers recursively within the configured Active Directory OUs
 * Filters computers by operating-system type
-* Adds missing computers to the appropriate AD group
-* Exports the resulting hostnames
-* Resolves the configured Qualys tag
-* Searches Qualys for each asset
-* Deduplicates Qualys asset IDs
-* Applies the patch-management tag in bulk
-* Records activity and execution statistics in `sync_log.txt`
+* Builds an authoritative workstation or server membership set
+* Adds missing computers to the appropriate Active Directory group
+* Removes computers that are no longer within the configured OU scope
+* Enables a removal safety lock if an OU cannot be resolved or queried
+* Exports the reconciled group membership to `hosts.txt`
+* Resolves the configured Qualys tag by name
+* Searches Qualys for each current and removed asset
+* Tests four hostname formats for each device
+* Deduplicates returned Qualys asset IDs
+* Applies the patch-management tag in bulk to current group members
+* Removes the patch-management tag from computers successfully removed from Active Directory
+* Prevents an asset from being untagged if it is still part of the current authoritative target set
+* Records Active Directory changes, Qualys API activity, errors, and execution statistics in `sync_log.txt`
 
 ---
 
