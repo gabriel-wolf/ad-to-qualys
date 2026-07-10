@@ -1,4 +1,3 @@
-# & "C:\Scripts\Qualys\Automatic API.ps1" -TargetMode Workstation
 # Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
 
 # Requires -Module ActiveDirectory
