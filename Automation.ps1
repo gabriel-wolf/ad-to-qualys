@@ -150,9 +150,6 @@ function Resolve-QualysAssetIds {
 
         $DeviceMatchesFound = 0
 
-        # Do not run these through Sort-Object -Unique.
-        # PowerShell's default comparison is case-insensitive and would
-        # collapse these four queries into only two.
         $NameVariants = @(
             "$($CleanName.ToLowerInvariant()).$DnsSuffix"
             "$($CleanName.ToUpperInvariant()).$DnsSuffix"
@@ -463,8 +460,6 @@ $GlobalFailedCount  = 0
 
 $DesiredMemberDNs = @{}
 
-# Contains only computers successfully removed from the AD group.
-# These devices will also have the Qualys tag removed.
 $SuccessfullyRemovedComputers =
     [System.Collections.Generic.List[object]]::new()
 
@@ -748,8 +743,6 @@ $Headers = @{
 
 $TargetTagId = $null
 
-# The tag is only required when there are current members to tag or
-# successfully removed members whose tag must be removed.
 if (
     $QualysTargetComputersList.Count -gt 0 -or
     $QualysRemovedComputersList.Count -gt 0
@@ -853,9 +846,6 @@ if ($QualysRemovedComputersList.Count -gt 0) {
         -DnsSuffix $DnsSuffix `
         -OperationLabel "TAG REMOVE"
 
-    # Safety check:
-    # Never remove a tag from an asset ID that is also part of the current
-    # authoritative group membership.
     if ($AddResolutionResult) {
         foreach ($CurrentAssetId in $AddResolutionResult.AssetIds) {
             if ($RemoveResolutionResult.AssetIds.Contains($CurrentAssetId)) {
