@@ -58,7 +58,7 @@ Qualys patch jobs can target the workstation or server tag, allowing asset membe
 
 ## Project Files
 
-### `Automation.ps1`
+### [`Automation.ps1`](Automation.ps1)
 
 The main production automation script.
 
@@ -94,7 +94,7 @@ The script:
 
 ---
 
-### `Get-QualysAsset.ps1`
+### [`Get-QualysAsset.ps1`](Get-QualysAsset.ps1)
 
 A diagnostic and validation utility used to search for an individual asset in Qualys by hostname.
 
@@ -111,7 +111,7 @@ This utility is useful when validating API connectivity, troubleshooting hostnam
 
 ---
 
-### `Initialize-QualysPassword.ps1`
+### [`Initialize-QualysPassword.ps1`](Initialize-QualysPassword.ps1)
 
 Initializes the encrypted Qualys API credential used by the other scripts.
 
@@ -251,7 +251,8 @@ The following example shows `Get-QualysAsset.ps1` successfully resolving a hostn
 
 The following example shows `Automation.ps1` successfully processing Active Directory targets, resolving Qualys assets, and applying the configured patch-management tag.
 
-![Successful AD-to-Qualys automation run](imgs/main-script-1.png)
+![Successful AD-to-Qualys automation run](imgs/main-script-2.png)
+![Successful AD-to-Qualys automation run](imgs/main-script-3.png)
 
 ---
 
@@ -432,17 +433,43 @@ A single script supports both asset classes while retaining separate:
 * Qualys tags
 * OU configuration files
 * Operating-system selection behavior
+* Reconciliation results
 * Execution logs and statistics
 
-This reduces duplicated code while preserving distinct patch-management scopes.
+This reduces duplicated code while preserving distinct workstation and server patch-management scopes.
 
 ---
 
-### Group Membership as the Authoritative Target List
+### Configured OUs as the Authoritative Source
 
-After OU processing, the script queries the final Active Directory group membership and uses that membership to compile the Qualys target list.
+The configured OU list defines which systems should belong to each patch-management scope.
 
-This allows the Active Directory group to function as a visible and auditable representation of the systems intended for patch-management onboarding.
+During each run, the script recursively discovers eligible computers within those OUs, filters them by operating-system type, and builds an authoritative membership set.
+
+That set is then compared against the corresponding Active Directory group:
+
+* Eligible computers missing from the group are added.
+* Existing group members no longer present in the configured OU scope are removed.
+* Devices successfully removed from the AD group are also processed for Qualys tag removal.
+
+This makes the Active Directory group a synchronized and auditable representation of the systems currently intended for patch management.
+
+---
+
+### Removal Safety Lock
+
+Removing systems from patch-management scope is more sensitive than adding them.
+
+To reduce the risk of accidental mass removal, the script disables all removal operations if any configured OU cannot be successfully resolved or queried.
+
+Possible causes include:
+
+* An incorrect OU name
+* An unavailable domain controller
+* Insufficient Active Directory permissions
+* A transient directory-service failure
+
+When the safety lock is enabled, the script may continue processing valid additions, but it does not remove computers from the Active Directory group or remove their Qualys tags.
 
 ---
 
@@ -450,7 +477,7 @@ This allows the Active Directory group to function as a visible and auditable re
 
 Enterprise asset inventories frequently contain inconsistent hostname capitalization or a mixture of short names and fully qualified domain names.
 
-For that reason, the automation attempts four variants:
+For that reason, the automation performs four separate Qualys queries for each device:
 
 ```text
 hostname.example.com
@@ -459,35 +486,82 @@ hostname
 HOSTNAME
 ```
 
-All returned asset IDs are deduplicated before the bulk update request is submitted.
+The four variants are intentionally preserved as separate queries because Qualys asset records may use different naming formats.
+
+All returned asset IDs are deduplicated before tag changes are submitted.
 
 ---
 
-### Bulk Qualys Tag Assignment
+### Two-Way Qualys Tag Reconciliation
 
-Rather than sending an independent tag update for every resolved asset, the script compiles the unique Qualys asset IDs and applies the tag through a single bulk request.
+The automation manages both entry into and removal from the Qualys patch-management scope.
 
-This reduces API calls and makes the update phase more efficient for large inventories.
+For current Active Directory group members, the script:
+
+1. Resolves their Qualys asset IDs.
+2. Deduplicates the returned IDs.
+3. Applies the configured Qualys tag in bulk.
+
+For computers successfully removed from the Active Directory group, the script:
+
+1. Resolves their Qualys asset IDs using the same four hostname variants.
+2. Deduplicates the returned IDs.
+3. Removes the configured Qualys tag in bulk.
+
+Before tag removal, the script excludes any asset ID that is also present in the current authoritative target set. This prevents an active in-scope asset from being untagged because of duplicate or overlapping Qualys records.
+
+---
+
+### Bulk Qualys Tag Updates
+
+Rather than sending a separate tag update for every asset, the script compiles unique Qualys asset IDs and submits bulk requests.
+
+Separate bulk requests are used for:
+
+* Adding the patch-management tag to current assets
+* Removing the patch-management tag from former assets
+
+This reduces API traffic and makes the automation more efficient for large enterprise inventories.
 
 ---
 
 ## Logging and Operational Visibility
 
-The automation records enough information to support routine operational review and troubleshooting.
+The automation records detailed information to support routine operational review, troubleshooting, and auditability.
 
 Examples include:
 
 ```text
-[AD ADDED SUCCESS]
-[AD ADDED FAILED]
+[AD ADD SUCCESS]
+[AD ADD FAILED]
+[AD REMOVE SUCCESS]
+[AD REMOVE FAILED]
+[TRYING ASSET NAME QUERY]
 [SUCCESS MATCH]
-[SKIPPED]
+[DUPLICATE MATCH]
+[QUALYS ASSET NOT FOUND]
 [API EXCEPTION]
+SAFETY LOCK
 CRITICAL ERROR
-QUALYS RESOLUTION FINAL STATISTICS
+ACTIVE DIRECTORY RECONCILIATION SUMMARY
+FINAL AUTOMATION SUMMARY
 ```
 
-Because logs may contain internal hostnames, directory names, tag names, or error details, production log files should not be committed to a public repository.
+The log includes:
+
+* Initial and final Active Directory group membership
+* Authoritative OU-scope totals
+* Computers added to the AD group
+* Computers removed from the AD group
+* Active Directory operation failures
+* Qualys hostname queries
+* Matched and unmatched assets
+* Unique asset IDs collected
+* Qualys tag-addition results
+* Qualys tag-removal results
+* Safety-lock activation
+
+Because logs may contain internal hostnames, directory names, tag names, asset IDs, or error details, production log files should not be committed to a public repository.
 
 ---
 
@@ -497,12 +571,17 @@ Because logs may contain internal hostnames, directory names, tag names, or erro
 * Do not commit `qualys_password.enc`.
 * Run the automation through a dedicated service account.
 * Delegate only the required Active Directory permissions.
-* Limit the Qualys API account to the required asset and tag operations.
+* Ensure the service account has permission to both add and remove members from the managed AD groups.
+* Limit the Qualys API account to the required asset-search and tag-update operations.
 * Restrict filesystem access to the script and credential directories.
 * Protect scheduled-task definitions and service-account credentials.
 * Treat generated logs and hostname exports as internal operational data.
 * Rotate the Qualys credential according to organizational policy.
 * Regenerate the encrypted secret after changing the execution account, host, Windows profile, or Qualys credential.
+* Treat the configured AD groups as automation-managed groups.
+* Avoid manually adding devices to those groups unless they also belong to the configured OU scope.
+* Review OU configuration changes carefully because they directly affect both AD group membership and Qualys patch scope.
+* Test removal behavior in a controlled environment before enabling scheduled production execution.
 
 ---
 
@@ -527,19 +606,27 @@ test-output/
 
 ## Error Handling
 
-The automation stops or skips processing when it encounters conditions such as:
+The automation stops, skips processing, or enables a safety lock when it encounters conditions such as:
 
 * Missing encrypted credential
 * Credential decryption failure
 * Missing OU configuration file
 * Empty OU configuration file
 * Missing Active Directory group
+* Failed AD group membership enumeration
 * Unresolvable OU name
+* Multiple OUs matching the same configured name
+* Failed OU computer enumeration
+* Failed Active Directory group addition
+* Failed Active Directory group removal
 * Qualys API communication failure
 * Missing Qualys tag
 * Unmatched hostname
-* Failed Active Directory group update
-* Failed Qualys bulk tag update
+* Failed Qualys tag addition
+* Failed Qualys tag removal
+* An asset scheduled for removal also appearing in the current authoritative target set
+
+If any configured OU cannot be fully validated, the script enables the removal safety lock and prevents both AD group removal and Qualys tag removal for that run.
 
 Errors and warnings are written to both the console and `sync_log.txt`.
 
