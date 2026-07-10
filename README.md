@@ -632,6 +632,12 @@ Errors and warnings are written to both the console and `sync_log.txt`.
 
 ---
 
+### Useful Links
+
+* [Qualys PM API Docs](https://gateway.qg1.apps.qualys.com/apidocs/pm/v1#/Patch%20Report%20Resource/submitAssetsTabReportUsingGET) – Direct link to the Qualys Patch Management (v1) reference for submitting Asset Tab reports.
+
+---
+
 ## Disclaimer
 
 This repository is intended to demonstrate an enterprise security automation pattern.
