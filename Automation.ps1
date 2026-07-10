@@ -31,36 +31,37 @@ $WorkstationOUFileName = "<list-of-workstation-ous.txt>"
 $ServerOUFileName      = "<list-of-server-ous.txt>"
 
 
+
 # =========================================================================
 # Environment Configuration
 # =========================================================================
 
 $EnvironmentConfig = @{
-    "Workstation" = @{
-        "ADGroupDN"   = $WorkstationADGroupDN
-        "QualysTag"   = $WorkstationQualysTag
-        "OUFileName"  = $WorkstationOUFileName
-        "FilterMatch" = "Server"
-        "SkipOnMatch" = $true
-        "LabelMatch"  = "workstations"
-        "LabelSkip"   = "servers"
+    Workstation = @{
+        ADGroupDN   = $WorkstationADGroupDN
+        QualysTag   = $WorkstationQualysTag
+        OUFileName  = $WorkstationOUFileName
+        FilterMatch = "Server"
+        SkipOnMatch = $true
+        LabelMatch  = "workstations"
+        LabelSkip   = "servers"
     }
 
-    "Server" = @{
-        "ADGroupDN"   = $ServerADGroupDN
-        "QualysTag"   = $ServerQualysTag
-        "OUFileName"  = $ServerOUFileName
-        "FilterMatch" = "Server"
-        "SkipOnMatch" = $false
-        "LabelMatch"  = "servers"
-        "LabelSkip"   = "workstations"
+    Server = @{
+        ADGroupDN   = $ServerADGroupDN
+        QualysTag   = $ServerQualysTag
+        OUFileName  = $ServerOUFileName
+        FilterMatch = "Server"
+        SkipOnMatch = $false
+        LabelMatch  = "servers"
+        LabelSkip   = "workstations"
     }
 }
 
 $ActiveProfile = $EnvironmentConfig[$TargetMode]
 
 # =========================================================================
-# Resolve Script Paths
+# Paths
 # =========================================================================
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -74,7 +75,7 @@ $LogFile    = Join-Path $ScriptDir "sync_log.txt"
 $HostsFile  = Join-Path $ScriptDir "hosts.txt"
 
 # =========================================================================
-# Logging Function
+# Logging
 # =========================================================================
 
 function Log-Message {
@@ -96,6 +97,246 @@ function Log-Message {
 }
 
 # =========================================================================
+# XML Escaping
+# =========================================================================
+
+function ConvertTo-XmlSafeText {
+    param(
+        [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
+        [string]$Value
+    )
+
+    return [System.Security.SecurityElement]::Escape($Value)
+}
+
+# =========================================================================
+# Qualys Asset Resolution
+# =========================================================================
+
+function Resolve-QualysAssetIds {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$ComputerNames,
+
+        [Parameter(Mandatory = $true)]
+        [hashtable]$Headers,
+
+        [Parameter(Mandatory = $true)]
+        [string]$QualysPlatform,
+
+        [Parameter(Mandatory = $true)]
+        [string]$DnsSuffix,
+
+        [Parameter(Mandatory = $true)]
+        [string]$OperationLabel
+    )
+
+    $AssetIds =
+        [System.Collections.Generic.HashSet[string]]::new(
+            [System.StringComparer]::OrdinalIgnoreCase
+        )
+
+    $MatchedComputerCount = 0
+    $AssetSearchURL = "https://$QualysPlatform/qps/rest/2.0/search/am/asset"
+
+    foreach ($ComputerName in $ComputerNames) {
+        $CleanName = $ComputerName.Trim()
+
+        if ([string]::IsNullOrWhiteSpace($CleanName)) {
+            continue
+        }
+
+        $DeviceMatchesFound = 0
+
+        # Do not run these through Sort-Object -Unique.
+        # PowerShell's default comparison is case-insensitive and would
+        # collapse these four queries into only two.
+        $NameVariants = @(
+            "$($CleanName.ToLowerInvariant()).$DnsSuffix"
+            "$($CleanName.ToUpperInvariant()).$DnsSuffix"
+            $CleanName.ToLowerInvariant()
+            $CleanName.ToUpperInvariant()
+        )
+
+        Log-Message "[$OperationLabel] Evaluating device: $CleanName" "Cyan"
+
+        foreach ($NameAttempt in $NameVariants) {
+            Log-Message "   [TRYING ASSET NAME QUERY]: '$NameAttempt'" "DarkGray"
+
+            $SafeNameAttempt = ConvertTo-XmlSafeText -Value $NameAttempt
+
+            $AssetSearchPayload = @"
+<ServiceRequest>
+    <filters>
+        <Criteria field="name" operator="EQUALS">$SafeNameAttempt</Criteria>
+    </filters>
+</ServiceRequest>
+"@
+
+            try {
+                $Response = Invoke-WebRequest `
+                    -Uri $AssetSearchURL `
+                    -Method Post `
+                    -Headers $Headers `
+                    -ContentType "text/xml" `
+                    -Body $AssetSearchPayload `
+                    -ErrorAction Stop
+
+                [xml]$XmlResult = $Response.Content
+
+                $AssetNodes = @(
+                    $XmlResult.SelectNodes("//Asset")
+                )
+
+                foreach ($AssetNode in $AssetNodes) {
+                    $AssetIdNode = $AssetNode.SelectSingleNode("id")
+
+                    if (
+                        $AssetIdNode -and
+                        -not [string]::IsNullOrWhiteSpace($AssetIdNode.InnerText)
+                    ) {
+                        $AssetId = $AssetIdNode.InnerText.Trim()
+
+                        if ($AssetIds.Add($AssetId)) {
+                            Log-Message "      [SUCCESS MATCH]: Collected Asset ID $AssetId using '$NameAttempt'." "Green"
+                        }
+                        else {
+                            Log-Message "      [DUPLICATE MATCH]: Asset ID $AssetId was already collected." "DarkGray"
+                        }
+
+                        $DeviceMatchesFound++
+                    }
+                }
+            }
+            catch {
+                Log-Message "      [API EXCEPTION]: Query failed for '$NameAttempt'." "Red"
+                Log-Message "      Error details: $($_.Exception.Message)" "Red"
+            }
+        }
+
+        if ($DeviceMatchesFound -eq 0) {
+            Log-Message "   [QUALYS ASSET NOT FOUND]: All four queries failed for '$CleanName'." "Yellow"
+        }
+        else {
+            $MatchedComputerCount++
+
+            Log-Message "   [DEVICE RESOLVED]: '$CleanName' produced $DeviceMatchesFound matching result(s)." "Gray"
+        }
+    }
+
+    return [pscustomobject]@{
+        AssetIds             = $AssetIds
+        MatchedComputerCount = $MatchedComputerCount
+        ComputerCount        = $ComputerNames.Count
+    }
+}
+
+# =========================================================================
+# Qualys Tag Update
+# =========================================================================
+
+function Update-QualysAssetTag {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("Add", "Remove")]
+        [string]$Action,
+
+        [Parameter(Mandatory = $true)]
+        [System.Collections.Generic.HashSet[string]]$AssetIds,
+
+        [Parameter(Mandatory = $true)]
+        [string]$TagId,
+
+        [Parameter(Mandatory = $true)]
+        [string]$TagName,
+
+        [Parameter(Mandatory = $true)]
+        [hashtable]$Headers,
+
+        [Parameter(Mandatory = $true)]
+        [string]$QualysPlatform
+    )
+
+    if ($AssetIds.Count -eq 0) {
+        Log-Message "Skipping Qualys tag $($Action.ToLower()) operation because no asset IDs were collected." "Gray"
+        return $false
+    }
+
+    $HostIdString = @($AssetIds) -join ","
+    $BulkUpdateURL = "https://$QualysPlatform/qps/rest/2.0/update/am/hostasset"
+
+    $SafeTagId = ConvertTo-XmlSafeText -Value $TagId
+
+    $TagOperationXml = switch ($Action) {
+        "Add" {
+@"
+<add>
+    <TagSimple>
+        <id>$SafeTagId</id>
+    </TagSimple>
+</add>
+"@
+        }
+
+        "Remove" {
+@"
+<remove>
+    <TagSimple>
+        <id>$SafeTagId</id>
+    </TagSimple>
+</remove>
+"@
+        }
+    }
+
+    $BulkUpdatePayload = @"
+<ServiceRequest>
+    <filters>
+        <Criteria field="id" operator="IN">$HostIdString</Criteria>
+    </filters>
+    <data>
+        <HostAsset>
+            <tags>
+                $TagOperationXml
+            </tags>
+        </HostAsset>
+    </data>
+</ServiceRequest>
+"@
+
+    try {
+        Log-Message "$Action Qualys tag '$TagName' for $($AssetIds.Count) asset(s)." "Yellow"
+
+        $UpdateResponse = Invoke-WebRequest `
+            -Uri $BulkUpdateURL `
+            -Method Post `
+            -Headers $Headers `
+            -ContentType "text/xml; charset=utf-8" `
+            -Body $BulkUpdatePayload `
+            -ErrorAction Stop
+
+        if ($UpdateResponse.Content -match "SUCCESS") {
+            Log-Message "SUCCESS: Qualys accepted the tag $($Action.ToLower()) request." "Green"
+            return $true
+        }
+
+        Log-Message "WARNING: Qualys returned a response without an explicit SUCCESS result." "Yellow"
+        Log-Message "Response content: $($UpdateResponse.Content)" "DarkGray"
+
+        return $false
+    }
+    catch {
+        Log-Message "ERROR: Qualys tag $($Action.ToLower()) request failed." "Red"
+        Log-Message "Error details: $($_.Exception.Message)" "Red"
+
+        return $false
+    }
+}
+
+# =========================================================================
 # Load Qualys Credential
 # =========================================================================
 
@@ -107,8 +348,11 @@ $PlaintextQualysKey = $null
 $BSTR = [IntPtr]::Zero
 
 try {
-    $QualysPassword = Get-Content -LiteralPath $SecretPath -ErrorAction Stop |
-        ConvertTo-SecureString -ErrorAction Stop
+    $QualysPassword = Get-Content `
+        -LiteralPath $SecretPath `
+        -ErrorAction Stop |
+        ConvertTo-SecureString `
+            -ErrorAction Stop
 
     $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR(
         $QualysPassword
@@ -134,7 +378,7 @@ finally {
 }
 
 # =========================================================================
-# Main Execution Start
+# Main Execution
 # =========================================================================
 
 $DateHeader = Get-Date -Format "dddd, MMMM dd, yyyy"
@@ -145,45 +389,46 @@ Log-Message "Run Date: $DateHeader" "Cyan"
 Log-Message "=========================================================" "Cyan"
 
 # =========================================================================
-# Validate OU Configuration File
+# Validate OU Configuration
 # =========================================================================
 
 if (-not (Test-Path -LiteralPath $OUListFile)) {
-    Log-Message "CRITICAL ERROR: Expected configuration file was not found at '$OUListFile'." "Red"
+    Log-Message "CRITICAL ERROR: Configuration file not found at '$OUListFile'." "Red"
     exit 1
 }
 
-$SourceOUNames = @(
-    Get-Content -LiteralPath $OUListFile -ErrorAction Stop |
-        Where-Object { $_ -match "\S" } |
-        ForEach-Object { $_.Trim() } |
-        Sort-Object -Unique
-)
+try {
+    $SourceOUNames = @(
+        Get-Content `
+            -LiteralPath $OUListFile `
+            -ErrorAction Stop |
+            Where-Object { $_ -match "\S" } |
+            ForEach-Object { $_.Trim() } |
+            Sort-Object -Unique
+    )
+}
+catch {
+    Log-Message "CRITICAL ERROR: Could not read '$OUListFile'." "Red"
+    Log-Message "Error details: $($_.Exception.Message)" "Red"
+    exit 1
+}
 
 if ($SourceOUNames.Count -eq 0) {
-    Log-Message "CRITICAL ERROR: '$($ActiveProfile.OUFileName)' is empty. No OU scope can be compiled." "Red"
+    Log-Message "CRITICAL ERROR: '$($ActiveProfile.OUFileName)' is empty." "Red"
     exit 1
 }
 
-Log-Message "Loaded $($SourceOUNames.Count) configured OU target(s) from '$($ActiveProfile.OUFileName)'." "Gray"
+Log-Message "Loaded $($SourceOUNames.Count) configured OU target(s)." "Gray"
 
 # =========================================================================
-# Resolve Target Active Directory Group
+# Resolve AD Group and Current Membership
 # =========================================================================
 
 try {
     $TargetGroup = Get-ADGroup `
         -Identity $ActiveProfile.ADGroupDN `
         -ErrorAction Stop
-}
-catch {
-    Log-Message "CRITICAL ERROR: Active Directory could not resolve group '$($ActiveProfile.ADGroupDN)'." "Red"
-    Log-Message "Error details: $($_.Exception.Message)" "Red"
-    exit 1
-}
 
-# Get direct computer members currently assigned to the group.
-try {
     $InitialMembers = @(
         Get-ADGroupMember `
             -Identity $TargetGroup `
@@ -192,7 +437,7 @@ try {
     )
 }
 catch {
-    Log-Message "CRITICAL ERROR: Could not enumerate members of '$($TargetGroup.Name)'." "Red"
+    Log-Message "CRITICAL ERROR: Could not resolve the AD group or enumerate its membership." "Red"
     Log-Message "Error details: $($_.Exception.Message)" "Red"
     exit 1
 }
@@ -205,34 +450,34 @@ foreach ($Member in $InitialMembers) {
     $CurrentMemberDNs[$Member.DistinguishedName] = $Member
 }
 
-Log-Message "Target Active Directory group: $($TargetGroup.Name)" "Gray"
+Log-Message "Target AD group: $($TargetGroup.Name)" "Gray"
 Log-Message "Computer membership before reconciliation: $InitialCount" "Gray"
 
 # =========================================================================
-# Reconciliation Counters and Collections
+# Reconciliation Collections
 # =========================================================================
 
 $GlobalAddedCount   = 0
 $GlobalRemovedCount = 0
 $GlobalFailedCount  = 0
 
-# Contains every computer that should be a member of the group.
-# The distinguished name is used as the key to prevent duplicates.
 $DesiredMemberDNs = @{}
 
-# Removal is permitted only when every configured OU can be resolved and
-# queried successfully.
+# Contains only computers successfully removed from the AD group.
+# These devices will also have the Qualys tag removed.
+$SuccessfullyRemovedComputers =
+    [System.Collections.Generic.List[object]]::new()
+
 $ScopeValidationPassed = $true
 
 # =========================================================================
-# Build Authoritative Computer Scope from Configured OUs
+# Build Authoritative OU Scope
 # =========================================================================
 
 foreach ($OUName in $SourceOUNames) {
     Log-Message "---------------------------------------------------------" "DarkGray"
     Log-Message "Evaluating configured OU: $OUName" "White"
 
-    # Escape apostrophes before placing the OU name inside the AD filter.
     $EscapedOUName = $OUName.Replace("'", "''")
 
     try {
@@ -245,7 +490,7 @@ foreach ($OUName in $SourceOUNames) {
         )
     }
     catch {
-        Log-Message " [OU QUERY FAILED]: Could not search for OU '$OUName'." "Red"
+        Log-Message " [OU QUERY FAILED]: Could not search for '$OUName'." "Red"
         Log-Message " Error details: $($_.Exception.Message)" "Red"
 
         $ScopeValidationPassed = $false
@@ -253,7 +498,7 @@ foreach ($OUName in $SourceOUNames) {
     }
 
     if ($MatchingOUs.Count -eq 0) {
-        Log-Message " [OU NOT FOUND]: '$OUName' was not found directly under '$OUMenuSearchBase'." "Red"
+        Log-Message " [OU NOT FOUND]: '$OUName' was not found under '$OUMenuSearchBase'." "Red"
 
         $ScopeValidationPassed = $false
         continue
@@ -261,7 +506,6 @@ foreach ($OUName in $SourceOUNames) {
 
     if ($MatchingOUs.Count -gt 1) {
         Log-Message " [OU AMBIGUOUS]: Multiple OUs named '$OUName' were returned." "Red"
-        Log-Message " OU names in the configuration file must resolve to one unique OU." "Red"
 
         $ScopeValidationPassed = $false
         continue
@@ -300,19 +544,15 @@ foreach ($OUName in $SourceOUNames) {
 
         $IsServerOS = $OSName -match $ActiveProfile.FilterMatch
 
-        # Workstation mode skips systems whose OS contains "Server".
-        # Server mode skips systems whose OS does not contain "Server".
         if ($IsServerOS -eq $ActiveProfile.SkipOnMatch) {
             $SkippedOSCount++
             continue
         }
 
         $MatchedOSCount++
-
         $DesiredMemberDNs[$Computer.DistinguishedName] = $Computer
     }
 
-    Log-Message " OU distinguished name: $($OU.DistinguishedName)" "DarkGray"
     Log-Message " Found $MatchedOSCount eligible $($ActiveProfile.LabelMatch)." "White"
     Log-Message " Skipped $SkippedOSCount $($ActiveProfile.LabelSkip)." "Gray"
 }
@@ -321,7 +561,7 @@ Log-Message "---------------------------------------------------------" "Cyan"
 Log-Message "Authoritative eligible computer count: $($DesiredMemberDNs.Count)" "Cyan"
 
 # =========================================================================
-# Determine Computers to Add
+# Add Missing AD Group Members
 # =========================================================================
 
 $DevicesToAdd = @(
@@ -333,7 +573,7 @@ $DevicesToAdd = @(
 )
 
 if ($DevicesToAdd.Count -gt 0) {
-    Log-Message "Found $($DevicesToAdd.Count) eligible computer(s) missing from the AD group." "Green"
+    Log-Message "Found $($DevicesToAdd.Count) computer(s) missing from the AD group." "Green"
 
     foreach ($Device in $DevicesToAdd) {
         try {
@@ -358,7 +598,7 @@ else {
 }
 
 # =========================================================================
-# Determine Computers to Remove
+# Remove Ineligible AD Group Members
 # =========================================================================
 
 if ($ScopeValidationPassed) {
@@ -371,7 +611,7 @@ if ($ScopeValidationPassed) {
     )
 
     if ($DevicesToRemove.Count -gt 0) {
-        Log-Message "Found $($DevicesToRemove.Count) existing group member(s) outside the authoritative OU scope." "Yellow"
+        Log-Message "Found $($DevicesToRemove.Count) member(s) outside the authoritative OU scope." "Yellow"
 
         foreach ($Device in $DevicesToRemove) {
             try {
@@ -382,6 +622,8 @@ if ($ScopeValidationPassed) {
                     -ErrorAction Stop
 
                 Log-Message " [AD REMOVE SUCCESS]: $($Device.Name)" "Yellow"
+
+                $SuccessfullyRemovedComputers.Add($Device)
                 $GlobalRemovedCount++
             }
             catch {
@@ -397,12 +639,12 @@ if ($ScopeValidationPassed) {
     }
 }
 else {
-    Log-Message "SAFETY LOCK ENABLED: At least one configured OU could not be fully validated." "Red"
-    Log-Message "No computers will be removed from the AD group during this run." "Red"
+    Log-Message "SAFETY LOCK: At least one configured OU could not be fully validated." "Red"
+    Log-Message "No computers were removed from the AD group or Qualys tag." "Red"
 }
 
 # =========================================================================
-# Gather Final AD Group Membership
+# Final AD Group Membership
 # =========================================================================
 
 try {
@@ -414,43 +656,47 @@ try {
     )
 }
 catch {
-    Log-Message "CRITICAL ERROR: Could not retrieve final group membership after reconciliation." "Red"
+    Log-Message "CRITICAL ERROR: Could not retrieve final group membership." "Red"
     Log-Message "Error details: $($_.Exception.Message)" "Red"
     exit 1
 }
 
 $FinalCount = $FinalMembers.Count
 
-$QualysTargetComputersList =
-    [System.Collections.Generic.List[string]]::new()
+$QualysTargetComputersList = @(
+    $FinalMembers |
+        Where-Object {
+            -not [string]::IsNullOrWhiteSpace($_.Name)
+        } |
+        ForEach-Object {
+            $_.Name
+        }
+)
 
-foreach ($Member in $FinalMembers) {
-    if (-not [string]::IsNullOrWhiteSpace($Member.Name)) {
-        $QualysTargetComputersList.Add($Member.Name)
-    }
-}
+$QualysRemovedComputersList = @(
+    $SuccessfullyRemovedComputers |
+        Where-Object {
+            -not [string]::IsNullOrWhiteSpace($_.Name)
+        } |
+        ForEach-Object {
+            $_.Name
+        }
+)
 
 # =========================================================================
-# AD Reconciliation Summary
+# AD Summary
 # =========================================================================
 
 Log-Message "---------------------------------------------------------" "Cyan"
 Log-Message "ACTIVE DIRECTORY RECONCILIATION SUMMARY:" "Cyan"
-Log-Message " Initial computer membership: $InitialCount" "White"
-Log-Message " Authoritative eligible computer count: $($DesiredMemberDNs.Count)" "White"
-Log-Message " Computers added during this run: $GlobalAddedCount" "Green"
-Log-Message " Computers removed during this run: $GlobalRemovedCount" "Yellow"
-Log-Message " Final computer membership: $FinalCount" "White"
+Log-Message " Initial membership: $InitialCount" "White"
+Log-Message " Authoritative eligible computers: $($DesiredMemberDNs.Count)" "White"
+Log-Message " Computers added: $GlobalAddedCount" "Green"
+Log-Message " Computers removed: $GlobalRemovedCount" "Yellow"
+Log-Message " Final membership: $FinalCount" "White"
 
 if ($GlobalFailedCount -gt 0) {
-    Log-Message " Active Directory operation failures: $GlobalFailedCount" "Red"
-}
-
-if (-not $ScopeValidationPassed) {
-    Log-Message " Removal safety lock status: ENABLED" "Red"
-}
-else {
-    Log-Message " Removal safety lock status: Not required" "Gray"
+    Log-Message " AD operation failures: $GlobalFailedCount" "Red"
 }
 
 # =========================================================================
@@ -458,76 +704,69 @@ else {
 # =========================================================================
 
 if ($QualysTargetComputersList.Count -gt 0) {
-    Log-Message "Exporting $($QualysTargetComputersList.Count) final hostname(s) to '$HostsFile'." "Yellow"
-
-    @(
-        $QualysTargetComputersList |
-            Sort-Object -Unique
-    ) |
+    $QualysTargetComputersList |
+        Sort-Object -Unique |
         Out-File `
             -FilePath $HostsFile `
             -Force `
             -Encoding utf8
+
+    Log-Message "Exported $($QualysTargetComputersList.Count) hostname(s) to '$HostsFile'." "Yellow"
 }
 else {
-    Log-Message "The reconciled AD group is empty. Writing an empty hosts file." "Yellow"
-
     $null |
         Out-File `
             -FilePath $HostsFile `
             -Force `
             -Encoding utf8
+
+    Log-Message "The reconciled AD group is empty. Wrote an empty hosts file." "Yellow"
 }
 
 # =========================================================================
-# Qualys API Automated Tagging
+# Build Qualys Authorization Header
 # =========================================================================
 
-if ($QualysTargetComputersList.Count -gt 0) {
-    Log-Message "=========================================================" "Cyan"
-    Log-Message "STARTING QUALYS ASSET RESOLUTION AND TAGGING" "Cyan"
-    Log-Message "Target asset count: $($QualysTargetComputersList.Count)" "Cyan"
-    Log-Message "=========================================================" "Cyan"
+$BasicAuthString =
+    [System.Text.Encoding]::UTF8.GetBytes(
+        "${QualysUsername}:${PlaintextQualysKey}"
+    )
 
-    try {
-        $BasicAuthString =
-            [System.Text.Encoding]::UTF8.GetBytes(
-                "${QualysUsername}:${PlaintextQualysKey}"
-            )
+$BasicAuthBase64Encoded =
+    [System.Convert]::ToBase64String($BasicAuthString)
 
-        $BasicAuthBase64Encoded =
-            [System.Convert]::ToBase64String($BasicAuthString)
-    }
-    catch {
-        Log-Message "CRITICAL ERROR: Failed to construct Qualys API authorization header." "Red"
-        Log-Message "Error details: $($_.Exception.Message)" "Red"
-        exit 1
-    }
-    finally {
-        $PlaintextQualysKey = $null
-    }
+$PlaintextQualysKey = $null
 
-    $Headers = @{
-        "Authorization"    = "Basic $BasicAuthBase64Encoded"
-        "X-Requested-With" = "QualysPostman"
-    }
+$Headers = @{
+    Authorization      = "Basic $BasicAuthBase64Encoded"
+    "X-Requested-With" = "QualysPostman"
+}
 
-    # =====================================================================
-    # Step A: Resolve Qualys Tag ID
-    # =====================================================================
+# =========================================================================
+# Resolve Qualys Tag ID
+# =========================================================================
 
+$TargetTagId = $null
+
+# The tag is only required when there are current members to tag or
+# successfully removed members whose tag must be removed.
+if (
+    $QualysTargetComputersList.Count -gt 0 -or
+    $QualysRemovedComputersList.Count -gt 0
+) {
     $TagSearchURL =
         "https://$QualysPlatform/qps/rest/2.0/search/am/tag"
+
+    $SafeTagName =
+        ConvertTo-XmlSafeText -Value $ActiveProfile.QualysTag
 
     $TagSearchPayload = @"
 <ServiceRequest>
     <filters>
-        <Criteria field="name" operator="EQUALS">$($ActiveProfile.QualysTag)</Criteria>
+        <Criteria field="name" operator="EQUALS">$SafeTagName</Criteria>
     </filters>
 </ServiceRequest>
 "@
-
-    $TargetTagId = $null
 
     try {
         Log-Message "Searching Qualys for tag '$($ActiveProfile.QualysTag)'." "Gray"
@@ -544,7 +783,10 @@ if ($QualysTargetComputersList.Count -gt 0) {
 
         $TagNode = $TagXml.SelectSingleNode("//Tag/id")
 
-        if ($TagNode -and -not [string]::IsNullOrWhiteSpace($TagNode.InnerText)) {
+        if (
+            $TagNode -and
+            -not [string]::IsNullOrWhiteSpace($TagNode.InnerText)
+        ) {
             $TargetTagId = $TagNode.InnerText.Trim()
 
             Log-Message "Resolved Qualys tag ID: $TargetTagId" "Green"
@@ -559,188 +801,105 @@ if ($QualysTargetComputersList.Count -gt 0) {
         Log-Message "Error details: $($_.Exception.Message)" "Red"
         exit 1
     }
+}
 
-    # =====================================================================
-    # Steps B and C: Resolve AD Hostnames to Qualys Asset IDs
-    # =====================================================================
+# =========================================================================
+# Resolve and Add Tag to Current AD Group Members
+# =========================================================================
 
-    $HostIdsToTag =
-        [System.Collections.Generic.HashSet[string]]::new(
-            [System.StringComparer]::OrdinalIgnoreCase
-        )
+$AddResolutionResult = $null
+$QualysAddSucceeded = $false
 
-    $SuccessfullyMatchedDevicesCount = 0
+if ($QualysTargetComputersList.Count -gt 0) {
+    Log-Message "=========================================================" "Cyan"
+    Log-Message "RESOLVING CURRENT AD GROUP MEMBERS FOR QUALYS TAG ADDITION" "Cyan"
+    Log-Message "=========================================================" "Cyan"
 
-    $AssetSearchURL =
-        "https://$QualysPlatform/qps/rest/2.0/search/am/asset"
+    $AddResolutionResult = Resolve-QualysAssetIds `
+        -ComputerNames $QualysTargetComputersList `
+        -Headers $Headers `
+        -QualysPlatform $QualysPlatform `
+        -DnsSuffix $DnsSuffix `
+        -OperationLabel "TAG ADD"
 
-    Log-Message "Resolving AD hostnames against the Qualys Asset Management index." "Gray"
-
-    foreach ($DeviceName in $QualysTargetComputersList) {
-        $CleanName = $DeviceName.Trim()
-
-        if ([string]::IsNullOrWhiteSpace($CleanName)) {
-            continue
-        }
-
-        $DeviceMatchesFound = 0
-
-        $NameVariants = @(
-            "$($CleanName.ToLowerInvariant()).$DnsSuffix"
-            "$($CleanName.ToUpperInvariant()).$DnsSuffix"
-            $CleanName.ToLowerInvariant()
-            $CleanName.ToUpperInvariant()
-        ) | Sort-Object -Unique
-
-        Log-Message "Evaluating Qualys asset name variants for [$CleanName]." "Cyan"
-
-        foreach ($NameAttempt in $NameVariants) {
-            Log-Message " [ASSET QUERY]: '$NameAttempt'" "DarkGray"
-
-            $AssetSearchPayload = @"
-<ServiceRequest>
-    <filters>
-        <Criteria field="name" operator="EQUALS">$NameAttempt</Criteria>
-    </filters>
-</ServiceRequest>
-"@
-
-            try {
-                $Response = Invoke-WebRequest `
-                    -Uri $AssetSearchURL `
-                    -Method Post `
-                    -Headers $Headers `
-                    -ContentType "text/xml" `
-                    -Body $AssetSearchPayload `
-                    -ErrorAction Stop
-
-                [xml]$XmlResult = $Response.Content
-
-                # Select every Asset returned rather than only the first one.
-                $AssetNodes = @(
-                    $XmlResult.SelectNodes("//Asset")
-                )
-
-                foreach ($AssetNode in $AssetNodes) {
-                    $AssetIdNode = $AssetNode.SelectSingleNode("id")
-
-                    if (
-                        $AssetIdNode -and
-                        -not [string]::IsNullOrWhiteSpace($AssetIdNode.InnerText)
-                    ) {
-                        $AssetId = $AssetIdNode.InnerText.Trim()
-
-                        $WasAdded = $HostIdsToTag.Add($AssetId)
-
-                        if ($WasAdded) {
-                            Log-Message "  [SUCCESS MATCH]: Collected asset ID $AssetId using '$NameAttempt'." "Green"
-                        }
-                        else {
-                            Log-Message "  [DUPLICATE MATCH]: Asset ID $AssetId was already collected." "DarkGray"
-                        }
-
-                        $DeviceMatchesFound++
-                    }
-                }
-            }
-            catch {
-                Log-Message "  [API EXCEPTION]: Asset lookup failed for '$NameAttempt'." "Red"
-                Log-Message "  Error details: $($_.Exception.Message)" "Red"
-            }
-        }
-
-        if ($DeviceMatchesFound -eq 0) {
-            Log-Message " [QUALYS ASSET NOT FOUND]: No asset was returned for '$CleanName'." "Yellow"
-        }
-        else {
-            $SuccessfullyMatchedDevicesCount++
-
-            Log-Message " [DEVICE RESOLVED]: '$CleanName' returned $DeviceMatchesFound matching asset record(s)." "Gray"
-        }
-    }
-
-    Log-Message "Qualys resolution collected $($HostIdsToTag.Count) unique asset ID(s)." "Green"
-
-    # =====================================================================
-    # Step D: Bulk Apply Qualys Tag
-    # =====================================================================
-
-    if (
-        $HostIdsToTag.Count -gt 0 -and
-        -not [string]::IsNullOrWhiteSpace($TargetTagId)
-    ) {
-        $HostIdString = @($HostIdsToTag) -join ","
-
-        $BulkUpdateURL =
-            "https://$QualysPlatform/qps/rest/2.0/update/am/hostasset"
-
-        $BulkUpdatePayload = @"
-<ServiceRequest>
-    <filters>
-        <Criteria field="id" operator="IN">$HostIdString</Criteria>
-    </filters>
-    <data>
-        <HostAsset>
-            <tags>
-                <add>
-                    <TagSimple>
-                        <id>$TargetTagId</id>
-                    </TagSimple>
-                </add>
-            </tags>
-        </HostAsset>
-    </data>
-</ServiceRequest>
-"@
-
-        try {
-            Log-Message "Applying Qualys tag '$($ActiveProfile.QualysTag)' to $($HostIdsToTag.Count) asset(s)." "Yellow"
-
-            $UpdateResponse = Invoke-WebRequest `
-                -Uri $BulkUpdateURL `
-                -Method Post `
-                -Headers $Headers `
-                -ContentType "text/xml; charset=utf-8" `
-                -Body $BulkUpdatePayload `
-                -ErrorAction Stop
-
-            if ($UpdateResponse.Content -match "SUCCESS") {
-                Log-Message "SUCCESS: Qualys accepted the bulk asset tag update." "Green"
-            }
-            else {
-                Log-Message "WARNING: Qualys returned a response, but an explicit SUCCESS value was not detected." "Yellow"
-                Log-Message "Response content: $($UpdateResponse.Content)" "DarkGray"
-            }
-        }
-        catch {
-            Log-Message "ERROR: Qualys bulk tag update failed." "Red"
-            Log-Message "Error details: $($_.Exception.Message)" "Red"
-        }
-    }
-    else {
-        Log-Message "Skipping Qualys bulk update because no asset IDs or tag ID were available." "Yellow"
-    }
-
-    # =====================================================================
-    # Qualys Summary
-    # =====================================================================
-
-    Log-Message "---------------------------------------------------------" "Cyan"
-    Log-Message "QUALYS RESOLUTION SUMMARY FOR [$($TargetMode.ToUpper())] MODE:" "Cyan"
-    Log-Message " AD computers evaluated: $($QualysTargetComputersList.Count)" "White"
-    Log-Message " AD computers with at least one Qualys match: $SuccessfullyMatchedDevicesCount" "Green"
-    Log-Message " Unique Qualys asset IDs collected: $($HostIdsToTag.Count)" "White"
-    Log-Message " Target Qualys tag: $($ActiveProfile.QualysTag)" "White"
-    Log-Message "---------------------------------------------------------" "Cyan"
+    $QualysAddSucceeded = Update-QualysAssetTag `
+        -Action Add `
+        -AssetIds $AddResolutionResult.AssetIds `
+        -TagId $TargetTagId `
+        -TagName $ActiveProfile.QualysTag `
+        -Headers $Headers `
+        -QualysPlatform $QualysPlatform
 }
 else {
-    Log-Message "The target AD group is empty after reconciliation. Qualys tagging was skipped." "Gray"
+    Log-Message "No final AD group members exist. Qualys tag addition was skipped." "Gray"
 }
 
 # =========================================================================
-# Completion
+# Resolve and Remove Tag from Successfully Removed AD Members
 # =========================================================================
 
-Log-Message "=========================================================" "Cyan"
-Log-Message "AUTOMATION COMPLETED IN [$($TargetMode.ToUpper())] MODE" "Cyan"
+$RemoveResolutionResult = $null
+$QualysRemoveSucceeded = $false
+
+if ($QualysRemovedComputersList.Count -gt 0) {
+    Log-Message "=========================================================" "Cyan"
+    Log-Message "RESOLVING REMOVED AD MEMBERS FOR QUALYS TAG REMOVAL" "Cyan"
+    Log-Message "=========================================================" "Cyan"
+
+    $RemoveResolutionResult = Resolve-QualysAssetIds `
+        -ComputerNames $QualysRemovedComputersList `
+        -Headers $Headers `
+        -QualysPlatform $QualysPlatform `
+        -DnsSuffix $DnsSuffix `
+        -OperationLabel "TAG REMOVE"
+
+    # Safety check:
+    # Never remove a tag from an asset ID that is also part of the current
+    # authoritative group membership.
+    if ($AddResolutionResult) {
+        foreach ($CurrentAssetId in $AddResolutionResult.AssetIds) {
+            if ($RemoveResolutionResult.AssetIds.Contains($CurrentAssetId)) {
+                $RemoveResolutionResult.AssetIds.Remove($CurrentAssetId) | Out-Null
+
+                Log-Message "SAFETY CHECK: Asset ID $CurrentAssetId exists in the current target set and was excluded from tag removal." "Yellow"
+            }
+        }
+    }
+
+    $QualysRemoveSucceeded = Update-QualysAssetTag `
+        -Action Remove `
+        -AssetIds $RemoveResolutionResult.AssetIds `
+        -TagId $TargetTagId `
+        -TagName $ActiveProfile.QualysTag `
+        -Headers $Headers `
+        -QualysPlatform $QualysPlatform
+}
+else {
+    Log-Message "No computers were successfully removed from AD. Qualys tag removal was skipped." "Gray"
+}
+
+# =========================================================================
+# Final Summary
+# =========================================================================
+
+Log-Message "---------------------------------------------------------" "Cyan"
+Log-Message "FINAL AUTOMATION SUMMARY FOR [$($TargetMode.ToUpper())] MODE:" "Cyan"
+Log-Message " AD computers added: $GlobalAddedCount" "Green"
+Log-Message " AD computers removed: $GlobalRemovedCount" "Yellow"
+Log-Message " Final AD group membership: $FinalCount" "White"
+
+if ($AddResolutionResult) {
+    Log-Message " Current AD members evaluated in Qualys: $($AddResolutionResult.ComputerCount)" "White"
+    Log-Message " Current AD members matched in Qualys: $($AddResolutionResult.MatchedComputerCount)" "Green"
+    Log-Message " Unique asset IDs submitted for tag addition: $($AddResolutionResult.AssetIds.Count)" "White"
+}
+
+if ($RemoveResolutionResult) {
+    Log-Message " Removed AD members evaluated in Qualys: $($RemoveResolutionResult.ComputerCount)" "White"
+    Log-Message " Removed AD members matched in Qualys: $($RemoveResolutionResult.MatchedComputerCount)" "Yellow"
+    Log-Message " Unique asset IDs submitted for tag removal: $($RemoveResolutionResult.AssetIds.Count)" "White"
+}
+
+Log-Message " Qualys tag addition accepted: $QualysAddSucceeded" "White"
+Log-Message " Qualys tag removal accepted: $QualysRemoveSucceeded" "White"
 Log-Message "=========================================================`n" "Cyan"
