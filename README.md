@@ -17,6 +17,8 @@ A computer may exist in Active Directory and have the Qualys Cloud Agent install
 
 This automation connects the two systems:
 
+![Alt Text](/imgs/ad-to-qualys-diagram-1.drawio.png)
+
 ```text
 Active Directory OUs
         |
