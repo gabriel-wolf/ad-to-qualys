@@ -136,6 +136,24 @@ The credential is decrypted into process memory when required for API authentica
 
 ---
 
+### [`Schedule-Task.ps1`](Schedule-Task.ps1)
+
+A deployment utility used to register the automation workflow as a persistent background task within the Windows Task Scheduler.
+
+The script:
+
+* Extracts environment-specific parameters (such as the script path, execution times, and target modes) into a configurable variable block
+* Constructs a scheduled task action to execute PowerShell with an explicit execution-policy bypass
+* Creates a daily trigger based on a specified execution runtime
+* Applies high-availability background settings, allowing the task to run on battery power and requiring an active network connection before initiation
+* Prompts the executing administrator for the target service account's password using a secure credential dialog
+* Registers the scheduled task globally on the host operating system with elevated administrative privileges (`-RunLevel Highest`)
+* Configures the task to run invisibly in the background regardless of whether the target service account is currently signed into an active desktop session
+
+This utility simplifies the deployment process across different environments while completely keeping system paths, custom domain structures, and execution schedules abstracted out of the core functional code.
+
+---
+
 ## Required Configuration Files
 
 The automation expects additional text files in the same directory as `Automation.ps1`.
@@ -404,20 +422,7 @@ Again, confirm that the correct group, tag, and OU configuration file were selec
 
 The script can be run through Windows Task Scheduler under a dedicated service account.
 
-A typical scheduled-task configuration includes:
-
-* **Program:** `powershell.exe`
-* **Arguments:**
-
-```text
--NoProfile -ExecutionPolicy Bypass -File "<path>\Automation.ps1" -TargetMode Workstation
-```
-
-A separate task can run server mode:
-
-```text
--NoProfile -ExecutionPolicy Bypass -File "<path>\Automation.ps1" -TargetMode Server
-```
+Use the [`Schedule-Task.ps1`](Schedule-Task.ps1) script.
 
 The scheduled-task account must be the same account that ran `Initialize-QualysPassword.ps1`, unless the encrypted credential is regenerated under the new execution identity.
 
