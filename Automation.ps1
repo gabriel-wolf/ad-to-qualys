@@ -15,21 +15,21 @@ $PSDefaultParameterValues["Invoke-WebRequest:UseBasicParsing"] = $true
 # Variables
 # =========================================================================
 
-$QualysUsername = "texas_ea6"
-$QualysPlatform = "qualysapi.qualys.com"
-$SecretPath     = "C:\ProgramData\QualysAutomation\qualys_password.enc"
+$QualysUsername = "<your-api-username>"
+$QualysPlatform = "<qualysapi.qualys.com>"
+$SecretPath     = "<path-to-secret-enc>"
 
-$DnsSuffix        = "ttu.edu"
-$OUMenuSearchBase = "DC=ttu,DC=edu"
+$DnsSuffix       = "<foo.bar>"
+$OUMenuSearchBase = "<DC=foo,DC=bar>"
 
-$WorkstationADGroupDN = "CN=ttu.edu Required Security-Qualys Cloud Agent-WorkstationsPMApply,OU=soc,OU=net,DC=ttu,DC=edu"
-$ServerADGroupDN      = "CN=ttu.edu Required Security-Qualys Cloud Agent-ServersPMApply,OU=soc,OU=net,DC=ttu,DC=edu"
+$WorkstationADGroupDN = "<CN=workstations-group-name,OU=xyz,OU=abc,DC=foo,DC=bar>"
+$ServerADGroupDN      = "<CN=servers-group-name,OU=xyz,OU=abc,DC=foo,DC=bar>"
 
-$WorkstationQualysTag = "Workstations PM"
-$ServerQualysTag      = "Servers PM"
+$WorkstationQualysTag = "<qualys-workstations-tag-group>"
+$ServerQualysTag      = "<qualys-servers-tag-group>"
 
-$WorkstationOUFileName = "workstation_ou.txt"
-$ServerOUFileName      = "server_ou.txt"
+$WorkstationOUFileName = "<list-of-workstation-ous.txt>"
+$ServerOUFileName      = "<list-of-server-ous.txt>"
 
 
 
