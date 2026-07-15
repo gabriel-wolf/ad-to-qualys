@@ -1160,8 +1160,8 @@ if ($QualysTargetComputersList.Count -gt 0) {
     $DepartmentFound = $false
 
     $DepartmentTagNames = @(
-        "MSAD - $($DepartmentName.ToUpperInvariant())"
-        "MSAD - $($DepartmentName.ToLowerInvariant())"
+        "AD - $($DepartmentName.ToUpperInvariant())"
+        "AD - $($DepartmentName.ToLowerInvariant())"
     ) | Select-Object -Unique
 
     foreach ($DepartmentTagName in $DepartmentTagNames) {
