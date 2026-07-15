@@ -40,8 +40,8 @@ The automation performs the following operations:
 10. Compiles the reconciled group membership into a list of hostnames.
 11. Resolves the configured Qualys patch-management tag by name.
 12. Builds department tag names from the configured OU list and searches Qualys for both uppercase and lowercase variants.
-    * `MSAD - DEPARTMENT`
-    * `MSAD - department`
+    * `AD - DEPARTMENT`
+    * `AD - department`
 13. Retrieves all assets assigned to each matching department tag, including paginated results.
 14. Normalizes the returned Qualys asset names and compares them against the final Active Directory group membership.
 15. Collects and deduplicates asset IDs only for devices that remain in the authoritative AD scope.
@@ -95,7 +95,7 @@ The script:
 * Exports the reconciled group membership to `hosts.txt`
 * Resolves the configured workstation or server Qualys patch-management tag by name
 * Builds department tag names from the configured OU list
-* Searches for both `MSAD - DEPARTMENT` and `MSAD - department`
+* Searches for both `AD - DEPARTMENT` and `AD - department`
 * Retrieves all paginated assets associated with each matching department tag
 * Normalizes returned Qualys asset names and matches them against the final Active Directory group membership
 * Reports which department tags were found and which were not found
@@ -412,14 +412,14 @@ Blank lines are ignored.
 
 ### 3. Create the Qualys department dynamic tags
 
-The `MSAD - <department>` naming convention is specific to this automation and is not created automatically by Qualys.
+The `AD - <department>` naming convention is specific to this automation and is not created automatically by Qualys.
 
 Create one dynamic Qualys tag for every department listed in the workstation or server OU configuration files.
 
 Use the following configuration for each tag:
 
 ```text
-Tag name: MSAD - <department>
+Tag name: AD - <department>
 Tag type: Dynamic
 Dynamic tag source: Asset Inventory
 Query: customAttributes:(value:'OU=<DEPARTMENT>,DC=<CONTOSO>,DC=<COM>')
@@ -430,15 +430,15 @@ Replace the placeholders with the department OU and domain components used in th
 Example:
 
 ```text
-Tag name: MSAD - finance
+Tag name: AD - finance
 Query: customAttributes:(value:'OU=FINANCE,DC=CONTOSO,DC=COM')
 ```
 
 The automation checks both capitalization forms for each configured department:
 
 ```text
-MSAD - DEPARTMENT
-MSAD - department
+AD - DEPARTMENT
+AD - department
 ```
 
 Only one form needs to exist. To avoid duplicate administration, use one consistent naming convention across all department tags.
@@ -567,7 +567,7 @@ The automation first resolves assets through the Qualys department dynamic tags 
 
 For every configured department, it:
 
-1. Checks both `MSAD - DEPARTMENT` and `MSAD - department`.
+1. Checks both `AD - DEPARTMENT` and `AD - department`.
 2. Retrieves all assets assigned to the matching dynamic tag, including paginated results.
 3. Normalizes each returned asset name to a short hostname.
 4. Accepts the asset only when that hostname exists in the final authoritative Active Directory group.
@@ -695,7 +695,7 @@ Because logs may contain internal hostnames, directory names, tag names, asset I
 * Treat the configured AD groups as automation-managed groups.
 * Avoid manually adding devices to those groups unless they also belong to the configured OU scope.
 * Review OU configuration changes carefully because they directly affect AD group membership, department-tag discovery, and Qualys patch scope.
-* Keep the OU configuration names aligned with the corresponding `MSAD - <department>` dynamic tags.
+* Keep the OU configuration names aligned with the corresponding `AD - <department>` dynamic tags.
 * Validate each dynamic tag query before enabling scheduled production execution.
 * Test removal behavior in a controlled environment before enabling scheduled production execution.
 
