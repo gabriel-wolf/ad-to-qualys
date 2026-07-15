@@ -9,7 +9,6 @@ param(
 )
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-
 $PSDefaultParameterValues["Invoke-WebRequest:UseBasicParsing"] = $true
 
 # =========================================================================
@@ -75,6 +74,7 @@ if (-not $ScriptDir) {
 $OUListFile = Join-Path $ScriptDir $ActiveProfile.OUFileName
 $LogFile    = Join-Path $ScriptDir "sync_log.txt"
 $HostsFile  = Join-Path $ScriptDir "hosts.txt"
+$QualysResultsCsv = Join-Path $ScriptDir "qualys_tag_results.csv"
 
 # =========================================================================
 # Logging
@@ -393,6 +393,7 @@ function Resolve-QualysAssetIds {
         )
 
     $MatchedComputerCount = 0
+    $DeviceResults = [System.Collections.Generic.List[object]]::new()
     $AssetSearchURL = "https://$QualysPlatform/qps/rest/2.0/search/am/asset"
 
     foreach ($ComputerName in $ComputerNames) {
@@ -403,6 +404,10 @@ function Resolve-QualysAssetIds {
         }
 
         $DeviceMatchesFound = 0
+        $DeviceAssetIds = [System.Collections.Generic.HashSet[string]]::new(
+            [System.StringComparer]::OrdinalIgnoreCase
+        )
+        $DeviceErrors = [System.Collections.Generic.List[string]]::new()
 
         $NameVariants = @(
             "$($CleanName.ToLowerInvariant()).$DnsSuffix"
@@ -450,6 +455,8 @@ function Resolve-QualysAssetIds {
                     ) {
                         $AssetId = $AssetIdNode.InnerText.Trim()
 
+                        $DeviceAssetIds.Add($AssetId) | Out-Null
+
                         if ($AssetIds.Add($AssetId)) {
                             Log-Message "      [SUCCESS MATCH]: Collected Asset ID $AssetId using '$NameAttempt'." "Green"
                         }
@@ -462,18 +469,44 @@ function Resolve-QualysAssetIds {
                 }
             }
             catch {
+                $DeviceErrors.Add("$NameAttempt`: $($_.Exception.Message)")
                 Log-Message "      [API EXCEPTION]: Query failed for '$NameAttempt'." "Red"
                 Log-Message "      Error details: $($_.Exception.Message)" "Red"
             }
         }
 
         if ($DeviceMatchesFound -eq 0) {
+            $FailureReason = if ($DeviceErrors.Count -gt 0) {
+                "Qualys asset lookup encountered API errors: $($DeviceErrors -join ' | ')"
+            }
+            else {
+                "No matching Qualys asset was found using any hostname variant."
+            }
+
             Log-Message "   [QUALYS ASSET NOT FOUND]: All four queries failed for '$CleanName'." "Yellow"
+
+            $DeviceResults.Add(
+                [pscustomobject]@{
+                    ComputerName = $CleanName
+                    AssetIds     = @()
+                    Success      = $false
+                    FailureReason = $FailureReason
+                }
+            )
         }
         else {
             $MatchedComputerCount++
 
             Log-Message "   [DEVICE RESOLVED]: '$CleanName' produced $DeviceMatchesFound matching result(s)." "Gray"
+
+            $DeviceResults.Add(
+                [pscustomobject]@{
+                    ComputerName = $CleanName
+                    AssetIds     = @($DeviceAssetIds)
+                    Success      = $true
+                    FailureReason = ""
+                }
+            )
         }
     }
 
@@ -481,6 +514,7 @@ function Resolve-QualysAssetIds {
         AssetIds             = $AssetIds
         MatchedComputerCount = $MatchedComputerCount
         ComputerCount        = $ComputerNames.Count
+        DeviceResults        = @($DeviceResults)
     }
 }
 
@@ -511,9 +545,22 @@ function Update-QualysAssetTag {
         [string]$QualysPlatform
     )
 
+    $SuccessfulAssetIds = [System.Collections.Generic.HashSet[string]]::new(
+        [System.StringComparer]::OrdinalIgnoreCase
+    )
+    $FailedAssetIds = [System.Collections.Generic.HashSet[string]]::new(
+        [System.StringComparer]::OrdinalIgnoreCase
+    )
+    $FailureReasons = @{}
+
     if ($AssetIds.Count -eq 0) {
         Log-Message "Skipping Qualys tag $($Action.ToLower()) operation because no asset IDs were collected." "Gray"
-        return $false
+        return [pscustomobject]@{
+            Success            = $false
+            SuccessfulAssetIds = $SuccessfulAssetIds
+            FailedAssetIds     = $FailedAssetIds
+            FailureReasons     = $FailureReasons
+        }
     }
 
     $BulkUpdateURL = "https://$QualysPlatform/qps/rest/2.0/update/am/hostasset"
@@ -586,22 +633,45 @@ function Update-QualysAssetTag {
                 -ErrorAction Stop
 
             if ($UpdateResponse.Content -match "SUCCESS") {
+                foreach ($AssetId in $BatchAssetIds) {
+                    $SuccessfulAssetIds.Add($AssetId) | Out-Null
+                }
+
                 Log-Message "SUCCESS: Qualys accepted batch $($BatchIndex + 1) of $BatchCount." "Green"
             }
             else {
-                Log-Message "WARNING: Qualys returned no explicit SUCCESS result for batch $($BatchIndex + 1) of $BatchCount." "Yellow"
+                $FailureReason = "Qualys returned no explicit SUCCESS result for batch $($BatchIndex + 1) of $BatchCount."
+
+                foreach ($AssetId in $BatchAssetIds) {
+                    $FailedAssetIds.Add($AssetId) | Out-Null
+                    $FailureReasons[$AssetId] = $FailureReason
+                }
+
+                Log-Message "WARNING: $FailureReason" "Yellow"
                 Log-Message "Response content: $($UpdateResponse.Content)" "DarkGray"
                 $AllBatchesSucceeded = $false
             }
         }
         catch {
+            $FailureReason = "Qualys tag $($Action.ToLower()) failed for batch $($BatchIndex + 1) of $($BatchCount): $($_.Exception.Message)"
+
+            foreach ($AssetId in $BatchAssetIds) {
+                $FailedAssetIds.Add($AssetId) | Out-Null
+                $FailureReasons[$AssetId] = $FailureReason
+            }
+
             Log-Message "ERROR: Qualys tag $($Action.ToLower()) failed for batch $($BatchIndex + 1) of $BatchCount." "Red"
             Log-Message "Error details: $($_.Exception.Message)" "Red"
             $AllBatchesSucceeded = $false
         }
     }
 
-    return $AllBatchesSucceeded
+    return [pscustomobject]@{
+        Success            = $AllBatchesSucceeded
+        SuccessfulAssetIds = $SuccessfulAssetIds
+        FailedAssetIds     = $FailedAssetIds
+        FailureReasons     = $FailureReasons
+    }
 }
 
 # =========================================================================
@@ -730,6 +800,7 @@ $GlobalRemovedCount = 0
 $GlobalFailedCount  = 0
 
 $DesiredMemberDNs = @{}
+$ComputerDepartmentMap = @{}
 
 $SuccessfullyRemovedComputers =
     [System.Collections.Generic.List[object]]::new()
@@ -817,6 +888,14 @@ foreach ($OUName in $SourceOUNames) {
 
         $MatchedOSCount++
         $DesiredMemberDNs[$Computer.DistinguishedName] = $Computer
+
+        if (-not $ComputerDepartmentMap.ContainsKey($Computer.Name)) {
+            $ComputerDepartmentMap[$Computer.Name] = [System.Collections.Generic.List[string]]::new()
+        }
+
+        if (-not $ComputerDepartmentMap[$Computer.Name].Contains($OUName)) {
+            $ComputerDepartmentMap[$Computer.Name].Add($OUName)
+        }
     }
 
     Log-Message " Found $MatchedOSCount eligible $($ActiveProfile.LabelMatch)." "White"
@@ -1049,6 +1128,17 @@ $FinalComputerNameSet = [System.Collections.Generic.HashSet[string]]::new(
     [System.StringComparer]::OrdinalIgnoreCase
 )
 
+$DeviceAssetIdsMap = @{}
+$DeviceDepartmentMap = @{}
+$DeviceResolutionFailureMap = @{}
+$SuccessfulTagAssetIds = [System.Collections.Generic.HashSet[string]]::new(
+    [System.StringComparer]::OrdinalIgnoreCase
+)
+$FailedTagAssetIds = [System.Collections.Generic.HashSet[string]]::new(
+    [System.StringComparer]::OrdinalIgnoreCase
+)
+$TagFailureReasons = @{}
+
 foreach ($ComputerName in $QualysTargetComputersList) {
     $FinalComputerNameSet.Add($ComputerName) | Out-Null
 }
@@ -1119,6 +1209,22 @@ if ($QualysTargetComputersList.Count -gt 0) {
 
             $DepartmentMatchedComputerNames.Add($NormalizedDeviceName) | Out-Null
             $CurrentTargetAssetIds.Add($Asset.AssetId) | Out-Null
+
+            if (-not $DeviceAssetIdsMap.ContainsKey($NormalizedDeviceName)) {
+                $DeviceAssetIdsMap[$NormalizedDeviceName] = [System.Collections.Generic.HashSet[string]]::new(
+                    [System.StringComparer]::OrdinalIgnoreCase
+                )
+            }
+
+            $DeviceAssetIdsMap[$NormalizedDeviceName].Add($Asset.AssetId) | Out-Null
+
+            if (-not $DeviceDepartmentMap.ContainsKey($NormalizedDeviceName)) {
+                $DeviceDepartmentMap[$NormalizedDeviceName] = [System.Collections.Generic.List[string]]::new()
+            }
+
+            if (-not $DeviceDepartmentMap[$NormalizedDeviceName].Contains($DepartmentName)) {
+                $DeviceDepartmentMap[$NormalizedDeviceName].Add($DepartmentName)
+            }
         }
     }
 
@@ -1150,13 +1256,24 @@ else {
 
 
     if ($DepartmentTagAssetIds.Count -gt 0) {
-        $DepartmentTagAddSucceeded = Update-QualysAssetTag `
+        $DepartmentTagAddResult = Update-QualysAssetTag `
             -Action Add `
             -AssetIds $DepartmentTagAssetIds `
             -TagId $TargetTagId `
             -TagName $ActiveProfile.QualysTag `
             -Headers $Headers `
             -QualysPlatform $QualysPlatform
+
+        $DepartmentTagAddSucceeded = $DepartmentTagAddResult.Success
+
+        foreach ($AssetId in $DepartmentTagAddResult.SuccessfulAssetIds) {
+            $SuccessfulTagAssetIds.Add($AssetId) | Out-Null
+        }
+
+        foreach ($AssetId in $DepartmentTagAddResult.FailedAssetIds) {
+            $FailedTagAssetIds.Add($AssetId) | Out-Null
+            $TagFailureReasons[$AssetId] = $DepartmentTagAddResult.FailureReasons[$AssetId]
+        }
     }
     else {
         Log-Message "No current AD members were matched through department Qualys tags." "Gray"
@@ -1189,17 +1306,42 @@ if ($StragglerComputerNames.Count -gt 0) {
         -DnsSuffix $DnsSuffix `
         -OperationLabel "STRAGGLER TAG ADD"
 
-    foreach ($AssetId in $AddResolutionResult.AssetIds) {
-        $CurrentTargetAssetIds.Add($AssetId) | Out-Null
+    foreach ($DeviceResult in $AddResolutionResult.DeviceResults) {
+        if ($DeviceResult.Success) {
+            if (-not $DeviceAssetIdsMap.ContainsKey($DeviceResult.ComputerName)) {
+                $DeviceAssetIdsMap[$DeviceResult.ComputerName] = [System.Collections.Generic.HashSet[string]]::new(
+                    [System.StringComparer]::OrdinalIgnoreCase
+                )
+            }
+
+            foreach ($AssetId in $DeviceResult.AssetIds) {
+                $DeviceAssetIdsMap[$DeviceResult.ComputerName].Add($AssetId) | Out-Null
+                $CurrentTargetAssetIds.Add($AssetId) | Out-Null
+            }
+        }
+        else {
+            $DeviceResolutionFailureMap[$DeviceResult.ComputerName] = $DeviceResult.FailureReason
+        }
     }
 
-    $QualysStragglerAddSucceeded = Update-QualysAssetTag `
+    $QualysStragglerAddResult = Update-QualysAssetTag `
         -Action Add `
         -AssetIds $AddResolutionResult.AssetIds `
         -TagId $TargetTagId `
         -TagName $ActiveProfile.QualysTag `
         -Headers $Headers `
         -QualysPlatform $QualysPlatform
+
+    $QualysStragglerAddSucceeded = $QualysStragglerAddResult.Success
+
+    foreach ($AssetId in $QualysStragglerAddResult.SuccessfulAssetIds) {
+        $SuccessfulTagAssetIds.Add($AssetId) | Out-Null
+    }
+
+    foreach ($AssetId in $QualysStragglerAddResult.FailedAssetIds) {
+        $FailedTagAssetIds.Add($AssetId) | Out-Null
+        $TagFailureReasons[$AssetId] = $QualysStragglerAddResult.FailureReasons[$AssetId]
+    }
 }
 elseif ($QualysTargetComputersList.Count -gt 0) {
     Log-Message "All current AD group members were matched through department Qualys tags." "Green"
@@ -1248,47 +1390,134 @@ if ($QualysRemovedComputersList.Count -gt 0) {
         }
     }
 
-    $QualysRemoveSucceeded = Update-QualysAssetTag `
+    $QualysRemoveResult = Update-QualysAssetTag `
         -Action Remove `
         -AssetIds $RemoveResolutionResult.AssetIds `
         -TagId $TargetTagId `
         -TagName $ActiveProfile.QualysTag `
         -Headers $Headers `
         -QualysPlatform $QualysPlatform
+
+    $QualysRemoveSucceeded = $QualysRemoveResult.Success
 }
 else {
     Log-Message "No computers were successfully removed from AD. Qualys tag removal was skipped." "Gray"
 }
 
 # =========================================================================
-# Final Summary
+# Export Qualys Tag Results
 # =========================================================================
 
+$QualysResults = @(
+    foreach ($ComputerName in ($QualysTargetComputersList | Sort-Object -Unique)) {
+        $Departments = if ($DeviceDepartmentMap.ContainsKey($ComputerName)) {
+            @($DeviceDepartmentMap[$ComputerName])
+        }
+        elseif ($ComputerDepartmentMap.ContainsKey($ComputerName)) {
+            @($ComputerDepartmentMap[$ComputerName])
+        }
+        else {
+            @("Unknown")
+        }
+
+        $AssetIds = if ($DeviceAssetIdsMap.ContainsKey($ComputerName)) {
+            @($DeviceAssetIdsMap[$ComputerName])
+        }
+        else {
+            @()
+        }
+
+        $SuccessfulIds = @(
+            $AssetIds | Where-Object { $SuccessfulTagAssetIds.Contains($_) }
+        )
+
+        $FailedIds = @(
+            $AssetIds | Where-Object { $FailedTagAssetIds.Contains($_) }
+        )
+
+        $Status = "Failed"
+        $FailureDescription = ""
+
+        if ($AssetIds.Count -eq 0) {
+            $FailureDescription = if ($DeviceResolutionFailureMap.ContainsKey($ComputerName)) {
+                $DeviceResolutionFailureMap[$ComputerName]
+            }
+            else {
+                "No matching Qualys asset was found through department tags or hostname lookup."
+            }
+        }
+        elseif ($SuccessfulIds.Count -gt 0 -and $FailedIds.Count -eq 0) {
+            $Status = "Tag Applied or Already Present"
+        }
+        elseif ($SuccessfulIds.Count -gt 0 -and $FailedIds.Count -gt 0) {
+            $Status = "Partially Applied"
+            $FailureDescription = @(
+                $FailedIds |
+                    ForEach-Object { $TagFailureReasons[$_] } |
+                    Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+                    Sort-Object -Unique
+            ) -join " | "
+        }
+        else {
+            $FailureDescription = @(
+                $FailedIds |
+                    ForEach-Object { $TagFailureReasons[$_] } |
+                    Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+                    Sort-Object -Unique
+            ) -join " | "
+
+            if ([string]::IsNullOrWhiteSpace($FailureDescription)) {
+                $FailureDescription = "Qualys asset IDs were resolved, but the patch-management tag update was not accepted."
+            }
+        }
+
+        [pscustomobject]@{
+            DeviceName         = $ComputerName
+            Department         = ($Departments | Sort-Object -Unique) -join "; "
+            QualysAssetIds     = $AssetIds -join "; "
+            Status             = $Status
+            FailureDescription = $FailureDescription
+        }
+    }
+)
+
+$QualysResults |
+    Export-Csv `
+        -LiteralPath $QualysResultsCsv `
+        -NoTypeInformation `
+        -Encoding UTF8 `
+        -Force
+
+Log-Message "Exported $($QualysResults.Count) Qualys tag result row(s) to '$QualysResultsCsv'." "Yellow"
+
+# =========================================================================
+# Final Summary
+# =========================================================================
 Log-Message "---------------------------------------------------------" "Cyan"
 Log-Message "FINAL AUTOMATION SUMMARY FOR [$($TargetMode.ToUpper())] MODE:" "Cyan"
-Log-Message " AD computers added: $GlobalAddedCount" "Green"
-Log-Message " AD computers removed: $GlobalRemovedCount" "Yellow"
-Log-Message " Final AD group membership: $FinalCount" "White"
+Log-Message " Active Directory computers added: $GlobalAddedCount" "Green"
+Log-Message " Active Directory computers removed: $GlobalRemovedCount" "Yellow"
+Log-Message " Final Active Directory group membership: $FinalCount" "White"
 
-Log-Message " Department Qualys tags searched: $DepartmentTagSearchCount" "White"
-Log-Message " Department Qualys tag search failures: $DepartmentTagSearchFailureCount" "White"
-Log-Message " Department-tag assets evaluated: $DepartmentTagAssetsEvaluated" "White"
-Log-Message " Current AD members matched through department tags: $($DepartmentMatchedComputerNames.Count)" "Green"
-Log-Message " Unique department-tag asset IDs submitted for addition: $($DepartmentTagAssetIds.Count)" "White"
-Log-Message " Hostname stragglers requiring manual resolution: $($StragglerComputerNames.Count)" "Yellow"
+Log-Message " Department tag lookup attempts: $DepartmentTagSearchCount" "White"
+Log-Message " Department tag variants not found or unresolved: $DepartmentTagSearchFailureCount" "White"
+Log-Message " Qualys assets evaluated from department tags: $DepartmentTagAssetsEvaluated" "White"
+Log-Message " Active Directory members matched through department tags: $($DepartmentMatchedComputerNames.Count)" "Green"
+Log-Message " Unique Qualys asset IDs resolved through department tags: $($DepartmentTagAssetIds.Count)" "White"
+Log-Message " Active Directory members not matched through department tags: $($StragglerComputerNames.Count)" "Yellow"
 
 if ($AddResolutionResult) {
-    Log-Message " Stragglers evaluated by hostname: $($AddResolutionResult.ComputerCount)" "White"
-    Log-Message " Stragglers matched by hostname: $($AddResolutionResult.MatchedComputerCount)" "Green"
-    Log-Message " Unique straggler asset IDs submitted for addition: $($AddResolutionResult.AssetIds.Count)" "White"
+    Log-Message " Unmatched Active Directory members evaluated by hostname: $($AddResolutionResult.ComputerCount)" "White"
+    Log-Message " Unmatched Active Directory members resolved by hostname: $($AddResolutionResult.MatchedComputerCount)" "Green"
+    Log-Message " Unique Qualys asset IDs resolved by hostname: $($AddResolutionResult.AssetIds.Count)" "White"
 }
 
 if ($RemoveResolutionResult) {
-    Log-Message " Removed AD members evaluated in Qualys: $($RemoveResolutionResult.ComputerCount)" "White"
-    Log-Message " Removed AD members matched in Qualys: $($RemoveResolutionResult.MatchedComputerCount)" "Yellow"
-    Log-Message " Unique asset IDs submitted for tag removal: $($RemoveResolutionResult.AssetIds.Count)" "White"
+    Log-Message " Removed Active Directory members evaluated in Qualys: $($RemoveResolutionResult.ComputerCount)" "White"
+    Log-Message " Removed Active Directory members resolved in Qualys: $($RemoveResolutionResult.MatchedComputerCount)" "Yellow"
+    Log-Message " Unique Qualys asset IDs submitted for tag removal: $($RemoveResolutionResult.AssetIds.Count)" "White"
 }
 
-Log-Message " Qualys tag addition accepted: $QualysAddSucceeded" "White"
-Log-Message " Qualys tag removal accepted: $QualysRemoveSucceeded" "White"
+Log-Message " Qualys patch-management tag addition request successful: $QualysAddSucceeded" "White"
+Log-Message " Qualys patch-management tag removal request successful: $QualysRemoveSucceeded" "White"
 Log-Message "=========================================================`n" "Cyan"
