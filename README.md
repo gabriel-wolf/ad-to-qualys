@@ -284,7 +284,7 @@ The following example shows `Get-QualysAsset.ps1` successfully resolving a hostn
 The following example shows `Automation.ps1` successfully processing Active Directory targets, resolving Qualys assets, and applying the configured patch-management tag.
 
 ![Successful AD-to-Qualys automation run](imgs/main-script-2.png)
-![Successful AD-to-Qualys automation run](imgs/main-script-4.png)
+![Successful AD-to-Qualys automation run](imgs/main-script-5.png)
 ![Successful AD-to-Qualys automation run](imgs/main-script-3.png)
 
 ---
