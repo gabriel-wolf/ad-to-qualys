@@ -14,21 +14,21 @@ param(
 # Variables
 # =========================================================================
 
-$QualysUsername = "<your-api-username>"
-$QualysPlatform = "<qualysapi.qualys.com>"
-$SecretPath     = "<path-to-secret-enc>"
+$QualysUsername = "texas_ea6"
+$QualysPlatform = "qualysapi.qualys.com"
+$SecretPath     = "C:\ProgramData\QualysAutomation\qualys_password.enc"
 
-$DnsSuffix       = "<foo.bar>"
-$OUMenuSearchBase = "<DC=foo,DC=bar>"
+$DnsSuffix        = "ttu.edu"
+$OUMenuSearchBase = "DC=ttu,DC=edu"
 
-$WorkstationADGroupDN = "<CN=workstations-group-name,OU=xyz,OU=abc,DC=foo,DC=bar>"
-$ServerADGroupDN      = "<CN=servers-group-name,OU=xyz,OU=abc,DC=foo,DC=bar>"
+$WorkstationADGroupDN = "CN=ttu.edu Required Security-Qualys Cloud Agent-WorkstationsPMApply,OU=soc,OU=net,DC=ttu,DC=edu"
+$ServerADGroupDN      = "CN=ttu.edu Required Security-Qualys Cloud Agent-ServersPMApply,OU=soc,OU=net,DC=ttu,DC=edu"
 
-$WorkstationQualysTag = "<qualys-workstations-tag-group>"
-$ServerQualysTag      = "<qualys-servers-tag-group>"
+$WorkstationQualysTag = "Workstations PM"
+$ServerQualysTag      = "Servers PM"
 
-$WorkstationOUFileName = "<list-of-workstation-ous.txt>"
-$ServerOUFileName      = "<list-of-server-ous.txt>"
+$WorkstationOUFileName = "workstation_ou.txt"
+$ServerOUFileName      = "server_ou.txt"
 
 
 
@@ -108,6 +108,258 @@ function ConvertTo-XmlSafeText {
     )
 
     return [System.Security.SecurityElement]::Escape($Value)
+}
+
+
+# =========================================================================
+# Qualys Tag Resolution
+# =========================================================================
+
+function Resolve-QualysTagId {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$TagName,
+
+        [Parameter(Mandatory = $true)]
+        [hashtable]$Headers,
+
+        [Parameter(Mandatory = $true)]
+        [string]$QualysPlatform,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$SuppressNotFoundLog
+    )
+
+    $TagSearchURL = "https://$QualysPlatform/qps/rest/2.0/search/am/tag"
+    $SafeTagName = ConvertTo-XmlSafeText -Value $TagName
+
+    $TagSearchPayload = @"
+<ServiceRequest>
+    <filters>
+        <Criteria field="name" operator="EQUALS">$SafeTagName</Criteria>
+    </filters>
+</ServiceRequest>
+"@
+
+    try {
+        Log-Message "Searching Qualys for tag '$TagName'." "Gray"
+
+        $TagResponse = Invoke-WebRequest `
+            -Uri $TagSearchURL `
+            -Method Post `
+            -Headers $Headers `
+            -ContentType "text/xml" `
+            -Body $TagSearchPayload `
+            -ErrorAction Stop
+
+        [xml]$TagXml = $TagResponse.Content
+        $TagNodes = @($TagXml.SelectNodes("//Tag/id"))
+
+        if ($TagNodes.Count -eq 1 -and -not [string]::IsNullOrWhiteSpace($TagNodes[0].InnerText)) {
+            $TagId = $TagNodes[0].InnerText.Trim()
+            Log-Message "Resolved Qualys tag '$TagName' to ID $TagId." "Green"
+            return $TagId
+        }
+
+        if ($TagNodes.Count -gt 1) {
+            Log-Message "ERROR: Multiple Qualys tags named '$TagName' were returned." "Red"
+            return $null
+        }
+
+        if (-not $SuppressNotFoundLog) {
+            Log-Message "ERROR: Qualys tag '$TagName' was not found." "Red"
+        }
+
+        return $null
+    }
+    catch {
+        Log-Message "ERROR: Qualys tag search failed for '$TagName'." "Red"
+        Log-Message "Error details: $($_.Exception.Message)" "Red"
+        return $null
+    }
+}
+
+# =========================================================================
+# Qualys Department Tag Asset Collection
+# =========================================================================
+
+function Get-QualysAssetsByTag {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$TagName,
+
+        [Parameter(Mandatory = $true)]
+        [hashtable]$Headers,
+
+        [Parameter(Mandatory = $true)]
+        [string]$QualysPlatform,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$SuppressNotFoundLog
+    )
+
+    $TagId = Resolve-QualysTagId `
+        -TagName $TagName `
+        -Headers $Headers `
+        -QualysPlatform $QualysPlatform `
+        -SuppressNotFoundLog:$SuppressNotFoundLog
+
+    if ([string]::IsNullOrWhiteSpace($TagId)) {
+        return [pscustomobject]@{
+            TagName = $TagName
+            TagId   = $null
+            Assets  = @()
+            Success = $false
+        }
+    }
+
+    $AssetSearchURL = "https://$QualysPlatform/qps/rest/2.0/search/am/asset"
+
+    $Assets = [System.Collections.Generic.List[object]]::new()
+
+    $CollectedAssetIds = [System.Collections.Generic.HashSet[string]]::new(
+        [System.StringComparer]::OrdinalIgnoreCase
+    )
+
+    $HasMoreRecords = $true
+    $LastId = $null
+    $PageNumber = 1
+
+    while ($HasMoreRecords) {
+        $PaginationFilter = if ($null -ne $LastId) {
+@"
+        <Criteria field="id" operator="GREATER">$LastId</Criteria>
+"@
+        }
+        else {
+            ""
+        }
+
+        $AssetPayload = @"
+<ServiceRequest>
+    <preferences>
+        <limitResults>1000</limitResults>
+    </preferences>
+    <filters>
+        <Criteria field="tagId" operator="EQUALS">$TagId</Criteria>
+$PaginationFilter
+    </filters>
+</ServiceRequest>
+"@
+
+        try {
+            Log-Message "[$TagName] Fetching Qualys asset batch $PageNumber." "DarkGray"
+
+            $Response = Invoke-WebRequest `
+                -Uri $AssetSearchURL `
+                -Method Post `
+                -Headers $Headers `
+                -ContentType "text/xml" `
+                -Body $AssetPayload `
+                -ErrorAction Stop
+
+            [xml]$XmlResult = $Response.Content
+
+            $AssetNodes = @(
+                $XmlResult.SelectNodes("//Asset")
+            )
+
+            foreach ($AssetNode in $AssetNodes) {
+                $AssetIdNode = $AssetNode.SelectSingleNode("id")
+                $NameNode = $AssetNode.SelectSingleNode("name")
+
+                if (
+                    -not $AssetIdNode -or
+                    [string]::IsNullOrWhiteSpace($AssetIdNode.InnerText)
+                ) {
+                    continue
+                }
+
+                $AssetId = $AssetIdNode.InnerText.Trim()
+
+                if (-not $CollectedAssetIds.Add($AssetId)) {
+                    continue
+                }
+
+                $DeviceName = if (
+                    $NameNode -and
+                    -not [string]::IsNullOrWhiteSpace($NameNode.InnerText)
+                ) {
+                    $NameNode.InnerText.Trim()
+                }
+                else {
+                    $null
+                }
+
+                $Assets.Add(
+                    [pscustomobject]@{
+                        AssetId   = $AssetId
+                        DeviceName = $DeviceName
+                    }
+                )
+            }
+
+            $HasMoreNode = $XmlResult.SelectSingleNode("//hasMoreRecords")
+            $LastIdNode = $XmlResult.SelectSingleNode("//lastId")
+
+            $HasMoreRecords = if (
+                $HasMoreNode -and
+                -not [string]::IsNullOrWhiteSpace($HasMoreNode.InnerText)
+            ) {
+                [System.Convert]::ToBoolean(
+                    $HasMoreNode.InnerText.Trim()
+                )
+            }
+            else {
+                $false
+            }
+
+            $LastId = if (
+                $LastIdNode -and
+                -not [string]::IsNullOrWhiteSpace($LastIdNode.InnerText)
+            ) {
+                $LastIdNode.InnerText.Trim()
+            }
+            else {
+                $null
+            }
+
+            if ($HasMoreRecords -and [string]::IsNullOrWhiteSpace($LastId)) {
+                Log-Message "ERROR: Qualys indicated more assets for '$TagName' but did not return a last ID." "Red"
+
+                return [pscustomobject]@{
+                    TagName = $TagName
+                    TagId   = $TagId
+                    Assets  = @($Assets)
+                    Success = $false
+                }
+            }
+
+            $PageNumber++
+        }
+        catch {
+            Log-Message "ERROR: Qualys asset search failed for tag '$TagName' on batch $PageNumber." "Red"
+            Log-Message "Error details: $($_.Exception.Message)" "Red"
+
+            return [pscustomobject]@{
+                TagName = $TagName
+                TagId   = $TagId
+                Assets  = @($Assets)
+                Success = $false
+            }
+        }
+    }
+
+    Log-Message "Collected $($Assets.Count) unique asset(s) from Qualys tag '$TagName'." "Green"
+
+    return [pscustomobject]@{
+        TagName = $TagName
+        TagId   = $TagId
+        Assets  = @($Assets)
+        Success = $true
+    }
 }
 
 # =========================================================================
@@ -262,10 +514,12 @@ function Update-QualysAssetTag {
         return $false
     }
 
-    $HostIdString = @($AssetIds) -join ","
     $BulkUpdateURL = "https://$QualysPlatform/qps/rest/2.0/update/am/hostasset"
-
     $SafeTagId = ConvertTo-XmlSafeText -Value $TagId
+    $BatchSize = 200
+    $AssetIdArray = @($AssetIds)
+    $BatchCount = [int][Math]::Ceiling($AssetIdArray.Count / [double]$BatchSize)
+    $AllBatchesSucceeded = $true
 
     $TagOperationXml = switch ($Action) {
         "Add" {
@@ -289,7 +543,21 @@ function Update-QualysAssetTag {
         }
     }
 
-    $BulkUpdatePayload = @"
+    for ($BatchIndex = 0; $BatchIndex -lt $BatchCount; $BatchIndex++) {
+        $StartIndex = $BatchIndex * $BatchSize
+        $RemainingCount = $AssetIdArray.Count - $StartIndex
+        $CurrentBatchSize = [Math]::Min($BatchSize, $RemainingCount)
+
+        $BatchAssetIds = @(
+            $AssetIdArray |
+                Select-Object `
+                    -Skip $StartIndex `
+                    -First $CurrentBatchSize
+        )
+
+        $HostIdString = $BatchAssetIds -join ","
+
+        $BulkUpdatePayload = @"
 <ServiceRequest>
     <filters>
         <Criteria field="id" operator="IN">$HostIdString</Criteria>
@@ -304,33 +572,34 @@ function Update-QualysAssetTag {
 </ServiceRequest>
 "@
 
-    try {
-        Log-Message "$Action Qualys tag '$TagName' for $($AssetIds.Count) asset(s)." "Yellow"
+        try {
+            Log-Message "$Action Qualys tag '$TagName' for batch $($BatchIndex + 1) of $BatchCount containing $($BatchAssetIds.Count) asset(s)." "Yellow"
 
-        $UpdateResponse = Invoke-WebRequest `
-            -Uri $BulkUpdateURL `
-            -Method Post `
-            -Headers $Headers `
-            -ContentType "text/xml; charset=utf-8" `
-            -Body $BulkUpdatePayload `
-            -ErrorAction Stop
+            $UpdateResponse = Invoke-WebRequest `
+                -Uri $BulkUpdateURL `
+                -Method Post `
+                -Headers $Headers `
+                -ContentType "text/xml; charset=utf-8" `
+                -Body $BulkUpdatePayload `
+                -ErrorAction Stop
 
-        if ($UpdateResponse.Content -match "SUCCESS") {
-            Log-Message "SUCCESS: Qualys accepted the tag $($Action.ToLower()) request." "Green"
-            return $true
+            if ($UpdateResponse.Content -match "SUCCESS") {
+                Log-Message "SUCCESS: Qualys accepted batch $($BatchIndex + 1) of $BatchCount." "Green"
+            }
+            else {
+                Log-Message "WARNING: Qualys returned no explicit SUCCESS result for batch $($BatchIndex + 1) of $BatchCount." "Yellow"
+                Log-Message "Response content: $($UpdateResponse.Content)" "DarkGray"
+                $AllBatchesSucceeded = $false
+            }
         }
-
-        Log-Message "WARNING: Qualys returned a response without an explicit SUCCESS result." "Yellow"
-        Log-Message "Response content: $($UpdateResponse.Content)" "DarkGray"
-
-        return $false
+        catch {
+            Log-Message "ERROR: Qualys tag $($Action.ToLower()) failed for batch $($BatchIndex + 1) of $BatchCount." "Red"
+            Log-Message "Error details: $($_.Exception.Message)" "Red"
+            $AllBatchesSucceeded = $false
+        }
     }
-    catch {
-        Log-Message "ERROR: Qualys tag $($Action.ToLower()) request failed." "Red"
-        Log-Message "Error details: $($_.Exception.Message)" "Red"
 
-        return $false
-    }
+    return $AllBatchesSucceeded
 }
 
 # =========================================================================
@@ -738,7 +1007,7 @@ $Headers = @{
 }
 
 # =========================================================================
-# Resolve Qualys Tag ID
+# Resolve Qualys Target Tag ID
 # =========================================================================
 
 $TargetTagId = $null
@@ -747,75 +1016,182 @@ if (
     $QualysTargetComputersList.Count -gt 0 -or
     $QualysRemovedComputersList.Count -gt 0
 ) {
-    $TagSearchURL =
-        "https://$QualysPlatform/qps/rest/2.0/search/am/tag"
+    $TargetTagId = Resolve-QualysTagId `
+        -TagName $ActiveProfile.QualysTag `
+        -Headers $Headers `
+        -QualysPlatform $QualysPlatform
 
-    $SafeTagName =
-        ConvertTo-XmlSafeText -Value $ActiveProfile.QualysTag
-
-    $TagSearchPayload = @"
-<ServiceRequest>
-    <filters>
-        <Criteria field="name" operator="EQUALS">$SafeTagName</Criteria>
-    </filters>
-</ServiceRequest>
-"@
-
-    try {
-        Log-Message "Searching Qualys for tag '$($ActiveProfile.QualysTag)'." "Gray"
-
-        $TagResponse = Invoke-WebRequest `
-            -Uri $TagSearchURL `
-            -Method Post `
-            -Headers $Headers `
-            -ContentType "text/xml" `
-            -Body $TagSearchPayload `
-            -ErrorAction Stop
-
-        [xml]$TagXml = $TagResponse.Content
-
-        $TagNode = $TagXml.SelectSingleNode("//Tag/id")
-
-        if (
-            $TagNode -and
-            -not [string]::IsNullOrWhiteSpace($TagNode.InnerText)
-        ) {
-            $TargetTagId = $TagNode.InnerText.Trim()
-
-            Log-Message "Resolved Qualys tag ID: $TargetTagId" "Green"
-        }
-        else {
-            Log-Message "CRITICAL ERROR: Qualys tag '$($ActiveProfile.QualysTag)' was not found." "Red"
-            exit 1
-        }
-    }
-    catch {
-        Log-Message "CRITICAL ERROR: Qualys tag search failed." "Red"
-        Log-Message "Error details: $($_.Exception.Message)" "Red"
+    if ([string]::IsNullOrWhiteSpace($TargetTagId)) {
+        Log-Message "CRITICAL ERROR: Could not resolve target Qualys tag '$($ActiveProfile.QualysTag)'." "Red"
         exit 1
     }
 }
 
 # =========================================================================
-# Resolve and Add Tag to Current AD Group Members
+# Add Target Tag from Department Tags and Resolve Stragglers
 # =========================================================================
 
-$AddResolutionResult = $null
-$QualysAddSucceeded = $false
+$DepartmentTagAssetIds = [System.Collections.Generic.HashSet[string]]::new(
+    [System.StringComparer]::OrdinalIgnoreCase
+)
+
+$DepartmentMatchedComputerNames = [System.Collections.Generic.HashSet[string]]::new(
+    [System.StringComparer]::OrdinalIgnoreCase
+)
+
+$CurrentTargetAssetIds = [System.Collections.Generic.HashSet[string]]::new(
+    [System.StringComparer]::OrdinalIgnoreCase
+)
+
+$FinalComputerNameSet = [System.Collections.Generic.HashSet[string]]::new(
+    [System.StringComparer]::OrdinalIgnoreCase
+)
+
+foreach ($ComputerName in $QualysTargetComputersList) {
+    $FinalComputerNameSet.Add($ComputerName) | Out-Null
+}
+
+$DepartmentTagSearchCount = 0
+$DepartmentTagSearchFailureCount = 0
+$DepartmentTagAssetsEvaluated = 0
+$DepartmentTagAssetsMatched = 0
+$DepartmentTagAddSucceeded = $false
+$DepartmentsFound = [System.Collections.Generic.List[string]]::new()
+$DepartmentsNotFound = [System.Collections.Generic.List[string]]::new()
 
 if ($QualysTargetComputersList.Count -gt 0) {
     Log-Message "=========================================================" "Cyan"
-    Log-Message "RESOLVING CURRENT AD GROUP MEMBERS FOR QUALYS TAG ADDITION" "Cyan"
+    Log-Message "COLLECTING CURRENT AD MEMBERS FROM DEPARTMENT QUALYS TAGS" "Cyan"
+    Log-Message "=========================================================" "Cyan"
+
+    foreach ($DepartmentName in $SourceOUNames) {
+    $DepartmentFound = $false
+
+    $DepartmentTagNames = @(
+        "MSAD - $($DepartmentName.ToUpperInvariant())"
+        "MSAD - $($DepartmentName.ToLowerInvariant())"
+    ) | Select-Object -Unique
+
+    foreach ($DepartmentTagName in $DepartmentTagNames) {
+        $DepartmentTagSearchCount++
+
+        $DepartmentResult = Get-QualysAssetsByTag `
+            -TagName $DepartmentTagName `
+            -Headers $Headers `
+            -QualysPlatform $QualysPlatform `
+            -SuppressNotFoundLog
+
+        if (-not $DepartmentResult.Success) {
+            $DepartmentTagSearchFailureCount++
+            continue
+        }
+
+        $DepartmentFound = $true
+
+        foreach ($Asset in $DepartmentResult.Assets) {
+            $DepartmentTagAssetsEvaluated++
+
+            if ([string]::IsNullOrWhiteSpace($Asset.DeviceName)) {
+                continue
+            }
+
+            $NormalizedDeviceName = $Asset.DeviceName.Trim()
+
+            if ($NormalizedDeviceName.EndsWith(".$DnsSuffix", [System.StringComparison]::OrdinalIgnoreCase)) {
+                $NormalizedDeviceName = $NormalizedDeviceName.Substring(
+                    0,
+                    $NormalizedDeviceName.Length - ($DnsSuffix.Length + 1)
+                )
+            }
+            elseif ($NormalizedDeviceName.Contains(".")) {
+                $NormalizedDeviceName = $NormalizedDeviceName.Split(".")[0]
+            }
+
+            if (-not $FinalComputerNameSet.Contains($NormalizedDeviceName)) {
+                continue
+            }
+
+            if ($DepartmentTagAssetIds.Add($Asset.AssetId)) {
+                $DepartmentTagAssetsMatched++
+            }
+
+            $DepartmentMatchedComputerNames.Add($NormalizedDeviceName) | Out-Null
+            $CurrentTargetAssetIds.Add($Asset.AssetId) | Out-Null
+        }
+    }
+
+    if ($DepartmentFound) {
+        $DepartmentsFound.Add($DepartmentName)
+    }
+    else {
+        $DepartmentsNotFound.Add($DepartmentName)
+        Log-Message "ERROR: No Qualys department tag was found for '$DepartmentName'." "Red"
+    }
+}
+
+Log-Message "---------------------------------------------------------" "Cyan"
+Log-Message "DEPARTMENT QUALYS TAG SEARCH SUMMARY:" "Cyan"
+
+if ($DepartmentsFound.Count -gt 0) {
+    Log-Message "FOUND: $($DepartmentsFound -join ', ')" "Green"
+}
+else {
+    Log-Message "FOUND: None" "Gray"
+}
+
+if ($DepartmentsNotFound.Count -gt 0) {
+    Log-Message "NOT FOUND: $($DepartmentsNotFound -join ', ')" "Yellow"
+}
+else {
+    Log-Message "NOT FOUND: None" "Green"
+}
+
+
+    if ($DepartmentTagAssetIds.Count -gt 0) {
+        $DepartmentTagAddSucceeded = Update-QualysAssetTag `
+            -Action Add `
+            -AssetIds $DepartmentTagAssetIds `
+            -TagId $TargetTagId `
+            -TagName $ActiveProfile.QualysTag `
+            -Headers $Headers `
+            -QualysPlatform $QualysPlatform
+    }
+    else {
+        Log-Message "No current AD members were matched through department Qualys tags." "Gray"
+    }
+}
+else {
+    Log-Message "No final AD group members exist. Department Qualys tag searches were skipped." "Gray"
+}
+
+$StragglerComputerNames = @(
+    foreach ($ComputerName in $QualysTargetComputersList) {
+        if (-not $DepartmentMatchedComputerNames.Contains($ComputerName)) {
+            $ComputerName
+        }
+    }
+)
+
+$AddResolutionResult = $null
+$QualysStragglerAddSucceeded = $false
+
+if ($StragglerComputerNames.Count -gt 0) {
+    Log-Message "=========================================================" "Cyan"
+    Log-Message "RESOLVING $($StragglerComputerNames.Count) QUALYS STRAGGLER(S) BY HOSTNAME" "Cyan"
     Log-Message "=========================================================" "Cyan"
 
     $AddResolutionResult = Resolve-QualysAssetIds `
-        -ComputerNames $QualysTargetComputersList `
+        -ComputerNames $StragglerComputerNames `
         -Headers $Headers `
         -QualysPlatform $QualysPlatform `
         -DnsSuffix $DnsSuffix `
-        -OperationLabel "TAG ADD"
+        -OperationLabel "STRAGGLER TAG ADD"
 
-    $QualysAddSucceeded = Update-QualysAssetTag `
+    foreach ($AssetId in $AddResolutionResult.AssetIds) {
+        $CurrentTargetAssetIds.Add($AssetId) | Out-Null
+    }
+
+    $QualysStragglerAddSucceeded = Update-QualysAssetTag `
         -Action Add `
         -AssetIds $AddResolutionResult.AssetIds `
         -TagId $TargetTagId `
@@ -823,8 +1199,24 @@ if ($QualysTargetComputersList.Count -gt 0) {
         -Headers $Headers `
         -QualysPlatform $QualysPlatform
 }
+elseif ($QualysTargetComputersList.Count -gt 0) {
+    Log-Message "All current AD group members were matched through department Qualys tags." "Green"
+}
 else {
     Log-Message "No final AD group members exist. Qualys tag addition was skipped." "Gray"
+}
+
+$QualysAddSucceeded = if ($QualysTargetComputersList.Count -eq 0) {
+    $false
+}
+elseif ($StragglerComputerNames.Count -eq 0) {
+    $DepartmentTagAddSucceeded
+}
+elseif ($DepartmentTagAssetIds.Count -eq 0) {
+    $QualysStragglerAddSucceeded
+}
+else {
+    $DepartmentTagAddSucceeded -and $QualysStragglerAddSucceeded
 }
 
 # =========================================================================
@@ -846,13 +1238,11 @@ if ($QualysRemovedComputersList.Count -gt 0) {
         -DnsSuffix $DnsSuffix `
         -OperationLabel "TAG REMOVE"
 
-    if ($AddResolutionResult) {
-        foreach ($CurrentAssetId in $AddResolutionResult.AssetIds) {
-            if ($RemoveResolutionResult.AssetIds.Contains($CurrentAssetId)) {
-                $RemoveResolutionResult.AssetIds.Remove($CurrentAssetId) | Out-Null
+    foreach ($CurrentAssetId in $CurrentTargetAssetIds) {
+        if ($RemoveResolutionResult.AssetIds.Contains($CurrentAssetId)) {
+            $RemoveResolutionResult.AssetIds.Remove($CurrentAssetId) | Out-Null
 
-                Log-Message "SAFETY CHECK: Asset ID $CurrentAssetId exists in the current target set and was excluded from tag removal." "Yellow"
-            }
+            Log-Message "SAFETY CHECK: Asset ID $CurrentAssetId exists in the current target set and was excluded from tag removal." "Yellow"
         }
     }
 
@@ -878,10 +1268,17 @@ Log-Message " AD computers added: $GlobalAddedCount" "Green"
 Log-Message " AD computers removed: $GlobalRemovedCount" "Yellow"
 Log-Message " Final AD group membership: $FinalCount" "White"
 
+Log-Message " Department Qualys tags searched: $DepartmentTagSearchCount" "White"
+Log-Message " Department Qualys tag search failures: $DepartmentTagSearchFailureCount" "White"
+Log-Message " Department-tag assets evaluated: $DepartmentTagAssetsEvaluated" "White"
+Log-Message " Current AD members matched through department tags: $($DepartmentMatchedComputerNames.Count)" "Green"
+Log-Message " Unique department-tag asset IDs submitted for addition: $($DepartmentTagAssetIds.Count)" "White"
+Log-Message " Hostname stragglers requiring manual resolution: $($StragglerComputerNames.Count)" "Yellow"
+
 if ($AddResolutionResult) {
-    Log-Message " Current AD members evaluated in Qualys: $($AddResolutionResult.ComputerCount)" "White"
-    Log-Message " Current AD members matched in Qualys: $($AddResolutionResult.MatchedComputerCount)" "Green"
-    Log-Message " Unique asset IDs submitted for tag addition: $($AddResolutionResult.AssetIds.Count)" "White"
+    Log-Message " Stragglers evaluated by hostname: $($AddResolutionResult.ComputerCount)" "White"
+    Log-Message " Stragglers matched by hostname: $($AddResolutionResult.MatchedComputerCount)" "Green"
+    Log-Message " Unique straggler asset IDs submitted for addition: $($AddResolutionResult.AssetIds.Count)" "White"
 }
 
 if ($RemoveResolutionResult) {
