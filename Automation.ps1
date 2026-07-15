@@ -74,7 +74,7 @@ if (-not $ScriptDir) {
 $OUListFile = Join-Path $ScriptDir $ActiveProfile.OUFileName
 $LogFile    = Join-Path $ScriptDir "sync_log.txt"
 $HostsFile  = Join-Path $ScriptDir "hosts.txt"
-$QualysResultsCsv = Join-Path $ScriptDir "qualys_tag_results.csv"
+$QualysResultsCsv = Join-Path $ScriptDir "qualys_tag_failures.csv"
 
 # =========================================================================
 # Logging
@@ -1481,14 +1481,22 @@ $QualysResults = @(
     }
 )
 
-$QualysResults |
+$QualysFailureResults = @(
+    $QualysResults |
+        Where-Object {
+            $_.Status -eq "Failed" -or
+            $_.Status -eq "Partially Applied"
+        }
+)
+
+$QualysFailureResults |
     Export-Csv `
         -LiteralPath $QualysResultsCsv `
         -NoTypeInformation `
         -Encoding UTF8 `
         -Force
 
-Log-Message "Exported $($QualysResults.Count) Qualys tag result row(s) to '$QualysResultsCsv'." "Yellow"
+Log-Message "Exported $($QualysFailureResults.Count) Qualys tag failure row(s) to '$QualysResultsCsv'." "Yellow"
 
 # =========================================================================
 # Final Summary
