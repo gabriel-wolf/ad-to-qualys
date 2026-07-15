@@ -10,6 +10,8 @@ param(
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
+$PSDefaultParameterValues["Invoke-WebRequest:UseBasicParsing"] = $true
+
 # =========================================================================
 # Variables
 # =========================================================================
