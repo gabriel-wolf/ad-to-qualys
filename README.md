@@ -2,7 +2,7 @@
 
 Enterprise security automation for synchronizing Active Directory computer inventories with Qualys Patch Management.
 
-This project discovers eligible workstation and server assets from designated Active Directory organizational units, adds missing computers to the appropriate security groups, resolves the corresponding assets in Qualys, and applies the Qualys tags used to place those systems into the correct patch-management scope.
+This project discovers eligible workstation and server assets from designated Active Directory organizational units, synchronizes those systems with the appropriate security groups, and uses department-based Qualys dynamic tags to resolve assets efficiently. Assets not matched through a department tag are resolved individually by hostname, after which the appropriate Qualys patch-management tag is applied in batches. Systems that leave the configured OU scope are removed from both the Active Directory group and the corresponding Qualys patch-management scope.
 
 > [!NOTE]
 > This automation was developed for and is actively used in a large-scale enterprise environment. The public repository contains sanitized configuration values and does not include production credentials, internal infrastructure details, or organization-specific identifiers.
@@ -37,27 +37,36 @@ The automation performs the following operations:
 8. Removes existing group members that are no longer located within the configured OU scope.
 9. Prevents removals when one or more configured OUs cannot be successfully resolved or queried.
 10. Compiles the reconciled group membership into a list of hostnames.
-11. Resolves current group members against the Qualys Asset Management API.
-12. Resolves computers removed from the AD group so their Qualys tag assignment can also be removed.
-13. Tests four hostname formats for each device:
+11. Resolves the configured Qualys patch-management tag by name.
+12. Builds department tag names from the configured OU list and searches Qualys for both uppercase and lowercase variants.
+    * `MSAD - DEPARTMENT`
+    * `MSAD - department`
+13. Retrieves all assets assigned to each matching department tag, including paginated results.
+14. Normalizes the returned Qualys asset names and compares them against the final Active Directory group membership.
+15. Collects and deduplicates asset IDs only for devices that remain in the authoritative AD scope.
+16. Identifies stragglers as final AD group members that were not matched through a department Qualys tag.
+17. Resolves only those stragglers through the Qualys Asset Management API by testing four hostname formats:
     * Lowercase fully qualified domain name
     * Uppercase fully qualified domain name
     * Lowercase short hostname
     * Uppercase short hostname
-14. Collects and deduplicates the returned Qualys asset IDs.
-15. Resolves the configured Qualys patch-management tag by name.
-16. Applies the tag in bulk to assets that remain in the authoritative AD scope.
-17. Removes the tag in bulk from assets that were successfully removed from the AD group.
-18. Writes execution details, reconciliation results, API activity, and summary statistics to a local log.
+18. Combines and deduplicates asset IDs returned through department-tag collection and hostname-based straggler resolution.
+19. Applies the patch-management tag to current assets in smaller bulk batches to avoid oversized Qualys update requests.
+20. Tracks computers successfully removed from the Active Directory group and resolves their Qualys asset IDs by hostname.
+21. Prevents tag removal from any asset that is also present in the current authoritative target set.
+22. Removes the patch-management tag in bulk from assets associated with computers successfully removed from the AD group.
+23. Reports which department tags were found and which were not found after both capitalization variants are tested.
+24. Writes execution details, reconciliation results, API activity, batch status, and summary statistics to a local log.
 
-This creates a two-way onboarding and offboarding workflow. Newly eligible systems are added to the appropriate Active Directory group and Qualys patch-management tag, while systems that leave the configured OU scope are removed from both.
+This creates a two-way onboarding and offboarding workflow. Newly eligible systems are added to the appropriate Active Directory group, matched through their department Qualys tags whenever possible, and assigned the corresponding patch-management tag. Devices that cannot be matched through department tags are resolved individually as stragglers.
 
-Qualys patch jobs can target the workstation or server tag, allowing asset membership to remain aligned with the organization’s Active Directory structure without requiring an engineer to manually locate, tag, or untag each device.
+Systems that leave the configured OU scope are removed from the Active Directory group and have their Qualys patch-management tag removed, while safety checks prevent currently eligible assets from being unintentionally untagged.
+
+Qualys patch jobs can target the workstation or server patch-management tag, allowing asset membership to remain aligned with the organization’s Active Directory structure without requiring an engineer to manually locate, tag, or untag each device.
 
 ---
 
 ## Project Files
-
 ### [`Automation.ps1`](Automation.ps1)
 
 The main production automation script.
@@ -83,14 +92,19 @@ The script:
 * Removes computers that are no longer within the configured OU scope
 * Enables a removal safety lock if an OU cannot be resolved or queried
 * Exports the reconciled group membership to `hosts.txt`
-* Resolves the configured Qualys tag by name
-* Searches Qualys for each current and removed asset
-* Tests four hostname formats for each device
-* Deduplicates returned Qualys asset IDs
-* Applies the patch-management tag in bulk to current group members
+* Resolves the configured workstation or server Qualys patch-management tag by name
+* Builds department tag names from the configured OU list
+* Searches for both `MSAD - DEPARTMENT` and `MSAD - department`
+* Retrieves all paginated assets associated with each matching department tag
+* Normalizes returned Qualys asset names and matches them against the final Active Directory group membership
+* Reports which department tags were found and which were not found
+* Identifies final AD group members that were not matched through a department tag as stragglers
+* Tests four hostname formats only for stragglers and computers removed from Active Directory
+* Deduplicates asset IDs returned through department-tag and hostname-based resolution
+* Applies the patch-management tag to current assets in smaller batches
 * Removes the patch-management tag from computers successfully removed from Active Directory
 * Prevents an asset from being untagged if it is still part of the current authoritative target set
-* Records Active Directory changes, Qualys API activity, errors, and execution statistics in `sync_log.txt`
+* Records Active Directory changes, department-tag searches, pagination activity, Qualys API activity, batch results, errors, and execution statistics in `sync_log.txt`
 
 ---
 
@@ -273,7 +287,6 @@ The following example shows `Automation.ps1` successfully processing Active Dire
 ![Successful AD-to-Qualys automation run](imgs/main-script-3.png)
 
 ---
-
 ## Requirements
 
 ### PowerShell and Windows
@@ -300,6 +313,7 @@ The execution account requires permission to:
 * Read the target Active Directory groups
 * Enumerate group membership
 * Add computer objects to the target groups
+* Remove computer objects from the target groups
 
 The account does not need unrestricted domain-administrator access.
 
@@ -312,7 +326,8 @@ Only the permissions required for the designated OUs and groups should be delega
 The Qualys account requires sufficient API permissions to:
 
 * Search Asset Management records
-* Search tags
+* Search and read tags
+* Read all paginated assets associated with a tag
 * Update host-asset tag assignments
 
 The exact Qualys role and API permissions should be limited to the functions required by this automation.
@@ -361,11 +376,58 @@ The values in this public repository should remain sanitized and should not iden
 
 Populate `<list-of-workstation-ous.txt>` and `<list-of-server-ous.txt>` with the OU names that should be evaluated.
 
+Use the department or top-level OU name expected by both Active Directory and the corresponding Qualys dynamic tag.
+
+Example:
+
+```text
+EITS
+FINANCE
+HR
+```
+
 Blank lines are ignored.
 
 ---
 
-### 3. Initialize the Qualys credential
+### 3. Create the Qualys department dynamic tags
+
+The `MSAD - <department>` naming convention is specific to this automation and is not created automatically by Qualys.
+
+Create one dynamic Qualys tag for every department listed in the workstation or server OU configuration files.
+
+Use the following configuration for each tag:
+
+```text
+Tag name: MSAD - <department>
+Tag type: Dynamic
+Dynamic tag source: Asset Inventory
+Query: customAttributes:(value:'OU=<DEPARTMENT>,DC=<CONTOSO>,DC=<COM>')
+```
+
+Replace the placeholders with the department OU and domain components used in the target environment.
+
+Example:
+
+```text
+Tag name: MSAD - finance
+Query: customAttributes:(value:'OU=FINANCE,DC=CONTOSO,DC=COM')
+```
+
+The automation checks both capitalization forms for each configured department:
+
+```text
+MSAD - DEPARTMENT
+MSAD - department
+```
+
+Only one form needs to exist. To avoid duplicate administration, use one consistent naming convention across all department tags.
+
+These department tags are used as the primary Qualys asset-discovery method. Assets returned by a department tag are accepted only when their normalized hostname also exists in the final authoritative Active Directory group.
+
+---
+
+### 4. Initialize the Qualys credential
 
 Run the initialization script under the same account that will execute the automation:
 
@@ -379,7 +441,7 @@ Confirm that the encrypted file was created at the configured secret path.
 
 ---
 
-### 4. Test a single Qualys asset
+### 5. Test a single Qualys asset
 
 Set the test hostname inside `Get-QualysAsset.ps1`, and then run:
 
@@ -391,7 +453,7 @@ Confirm that the expected asset ID and hostname are returned.
 
 ---
 
-### 5. Test workstation mode
+### 6. Test workstation mode
 
 ```powershell
 .\Automation.ps1 -TargetMode Workstation
@@ -408,7 +470,7 @@ Confirm that the correct Active Directory group and Qualys tag were selected.
 
 ---
 
-### 6. Test server mode
+### 7. Test server mode
 
 ```powershell
 .\Automation.ps1 -TargetMode Server
@@ -478,11 +540,21 @@ When the safety lock is enabled, the script may continue processing valid additi
 
 ---
 
-### Hostname Normalization
+### Department-First Asset Resolution and Hostname Normalization
 
-Enterprise asset inventories frequently contain inconsistent hostname capitalization or a mixture of short names and fully qualified domain names.
+The automation first resolves assets through the Qualys department dynamic tags associated with the configured OU names.
 
-For that reason, the automation performs four separate Qualys queries for each device:
+For every configured department, it:
+
+1. Checks both `MSAD - DEPARTMENT` and `MSAD - department`.
+2. Retrieves all assets assigned to the matching dynamic tag, including paginated results.
+3. Normalizes each returned asset name to a short hostname.
+4. Accepts the asset only when that hostname exists in the final authoritative Active Directory group.
+5. Deduplicates the accepted Qualys asset IDs.
+
+A straggler is a final Active Directory group member that was not matched through any department tag.
+
+Only those stragglers are resolved through four separate hostname queries:
 
 ```text
 hostname.example.com
@@ -491,9 +563,9 @@ hostname
 HOSTNAME
 ```
 
-The four variants are intentionally preserved as separate queries because Qualys asset records may use different naming formats.
+The four variants are intentionally preserved because Qualys asset records may use different naming formats and capitalization.
 
-All returned asset IDs are deduplicated before tag changes are submitted.
+Asset IDs returned through department-tag collection and hostname-based straggler resolution are deduplicated before tag changes are submitted.
 
 ---
 
@@ -503,30 +575,39 @@ The automation manages both entry into and removal from the Qualys patch-managem
 
 For current Active Directory group members, the script:
 
-1. Resolves their Qualys asset IDs.
-2. Deduplicates the returned IDs.
-3. Applies the configured Qualys tag in bulk.
+1. Resolves the workstation or server patch-management tag.
+2. Searches the corresponding department dynamic tags.
+3. Retrieves all paginated assets associated with those tags.
+4. Matches normalized Qualys hostnames against the final Active Directory group membership.
+5. Identifies unmatched AD members as stragglers.
+6. Resolves only those stragglers using the four hostname variants.
+7. Combines and deduplicates all accepted asset IDs.
+8. Applies the configured patch-management tag in batches.
 
 For computers successfully removed from the Active Directory group, the script:
 
-1. Resolves their Qualys asset IDs using the same four hostname variants.
+1. Resolves their Qualys asset IDs using the four hostname variants.
 2. Deduplicates the returned IDs.
-3. Removes the configured Qualys tag in bulk.
+3. Excludes any asset ID that is still part of the current authoritative target set.
+4. Removes the configured patch-management tag in batches.
 
-Before tag removal, the script excludes any asset ID that is also present in the current authoritative target set. This prevents an active in-scope asset from being untagged because of duplicate or overlapping Qualys records.
+The script removes the Qualys tag only from computers successfully removed from the managed Active Directory group during the current run. It does not independently purge every preexisting asset from the Qualys patch-management tag.
 
 ---
 
-### Bulk Qualys Tag Updates
+### Batched Qualys Tag Updates
 
-Rather than sending a separate tag update for every asset, the script compiles unique Qualys asset IDs and submits bulk requests.
+Rather than sending a separate tag update for every asset or one oversized request for the entire inventory, the script compiles unique Qualys asset IDs and submits them in smaller batches.
 
-Separate bulk requests are used for:
+Batched requests are used for:
 
-* Adding the patch-management tag to current assets
+* Adding the patch-management tag to assets matched through department tags
+* Adding the patch-management tag to hostname-resolved stragglers
 * Removing the patch-management tag from former assets
 
-This reduces API traffic and makes the automation more efficient for large enterprise inventories.
+Each batch is logged independently so failed requests can be identified without losing visibility into successful batches.
+
+This reduces API traffic while avoiding request-size failures in large enterprise inventories.
 
 ---
 
@@ -546,6 +627,9 @@ Examples include:
 [DUPLICATE MATCH]
 [QUALYS ASSET NOT FOUND]
 [API EXCEPTION]
+DEPARTMENT QUALYS TAG SEARCH SUMMARY
+FOUND:
+NOT FOUND:
 SAFETY LOCK
 CRITICAL ERROR
 ACTIVE DIRECTORY RECONCILIATION SUMMARY
@@ -559,11 +643,15 @@ The log includes:
 * Computers added to the AD group
 * Computers removed from the AD group
 * Active Directory operation failures
-* Qualys hostname queries
+* Department-tag searches and pagination activity
+* Departments whose dynamic tags were found or not found
+* Assets evaluated and matched through department tags
+* Hostname stragglers requiring individual resolution
+* Qualys hostname queries for stragglers and removed members
 * Matched and unmatched assets
 * Unique asset IDs collected
-* Qualys tag-addition results
-* Qualys tag-removal results
+* Per-batch Qualys tag-addition results
+* Per-batch Qualys tag-removal results
 * Safety-lock activation
 
 Because logs may contain internal hostnames, directory names, tag names, asset IDs, or error details, production log files should not be committed to a public repository.
@@ -577,7 +665,7 @@ Because logs may contain internal hostnames, directory names, tag names, asset I
 * Run the automation through a dedicated service account.
 * Delegate only the required Active Directory permissions.
 * Ensure the service account has permission to both add and remove members from the managed AD groups.
-* Limit the Qualys API account to the required asset-search and tag-update operations.
+* Limit the Qualys API account to the required asset-search, tag-read, and tag-update operations.
 * Restrict filesystem access to the script and credential directories.
 * Protect scheduled-task definitions and service-account credentials.
 * Treat generated logs and hostname exports as internal operational data.
@@ -585,7 +673,9 @@ Because logs may contain internal hostnames, directory names, tag names, asset I
 * Regenerate the encrypted secret after changing the execution account, host, Windows profile, or Qualys credential.
 * Treat the configured AD groups as automation-managed groups.
 * Avoid manually adding devices to those groups unless they also belong to the configured OU scope.
-* Review OU configuration changes carefully because they directly affect both AD group membership and Qualys patch scope.
+* Review OU configuration changes carefully because they directly affect AD group membership, department-tag discovery, and Qualys patch scope.
+* Keep the OU configuration names aligned with the corresponding `MSAD - <department>` dynamic tags.
+* Validate each dynamic tag query before enabling scheduled production execution.
 * Test removal behavior in a controlled environment before enabling scheduled production execution.
 
 ---
@@ -625,10 +715,13 @@ The automation stops, skips processing, or enables a safety lock when it encount
 * Failed Active Directory group addition
 * Failed Active Directory group removal
 * Qualys API communication failure
-* Missing Qualys tag
+* Missing target Qualys patch-management tag
+* Neither capitalization variant of a department Qualys tag being found
+* Failed department-tag asset pagination
+* Missing pagination metadata when Qualys reports additional records
 * Unmatched hostname
-* Failed Qualys tag addition
-* Failed Qualys tag removal
+* Failed Qualys tag-addition batch
+* Failed Qualys tag-removal batch
 * An asset scheduled for removal also appearing in the current authoritative target set
 
 If any configured OU cannot be fully validated, the script enables the removal safety lock and prevents both AD group removal and Qualys tag removal for that run.
@@ -646,5 +739,4 @@ Errors and warnings are written to both the console and `sync_log.txt`.
 ## Disclaimer
 
 This repository is intended to demonstrate an enterprise security automation pattern.
-
 Names, credentials, paths, domains, organizational units, groups, tags, and other environment-specific values shown in the public version are placeholders or sanitized examples. The scripts should be reviewed, tested, and adapted to the security requirements of the target environment before use.
