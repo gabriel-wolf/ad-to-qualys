@@ -1,4 +1,5 @@
 # Automated AD-to-Qualys Patch Management Onboarding
+> **Author:** Gabriel Wolf
 
 Enterprise security automation for synchronizing Active Directory computer inventories with Qualys Patch Management.
 
