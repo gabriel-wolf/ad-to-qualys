@@ -304,7 +304,7 @@ The following example shows `Automation.ps1` successfully processing Active Dire
 
 ![Successful AD-to-Qualys automation run](imgs/main-script-2.png)
 ![Successful AD-to-Qualys automation run](imgs/main-script-5.png)
-![Successful AD-to-Qualys automation run](imgs/main-script-3.png)
+![Successful AD-to-Qualys automation run](imgs/main-script-6.png)
 
 ---
 ## Requirements
