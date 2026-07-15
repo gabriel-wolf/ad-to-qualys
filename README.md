@@ -381,7 +381,7 @@ Use the department or top-level OU name expected by both Active Directory and th
 Example:
 
 ```text
-EITS
+IT
 FINANCE
 HR
 ```
