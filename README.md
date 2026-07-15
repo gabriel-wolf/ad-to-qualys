@@ -17,7 +17,7 @@ A computer may exist in Active Directory and have the Qualys Cloud Agent install
 
 This automation connects the two systems:
 
-![Diagram](/imgs/update-ad-to-qualys-diagram-2.drawio.png)
+![Diagram](/imgs/update-ad-to-qualys-diagram-3.drawio.png)
 
 The result is a repeatable onboarding process that reduces manual asset handling and helps ensure newly deployed systems are brought under enterprise patch-management controls.
 
