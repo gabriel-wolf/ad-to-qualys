@@ -41,7 +41,7 @@ text {
 <text class="crt" x="92.4" y="50" fill="#29b8db" textLength="42" lengthAdjust="spacing">ASSET</text>
 <text class="crt" x="142.8" y="50" fill="#29b8db" textLength="50.4" lengthAdjust="spacing">SEARCH</text>
 <text class="crt" x="201.6" y="50" fill="#29b8db" textLength="33.6" lengthAdjust="spacing">FOR:</text>
-<text class="crt" x="243.6" y="50" fill="#29b8db" textLength="92.4" lengthAdjust="spacing">EITS-319175</text>
+<text class="crt" x="243.6" y="50" fill="#29b8db" textLength="92.4" lengthAdjust="spacing">ACME-123456</text>
 <text class="crt" x="0" y="68" fill="#29b8db" textLength="478.8" lengthAdjust="spacing">=========================================================</text>
 <text class="crt" x="0" y="86" fill="#d4d4d4" textLength="67.2" lengthAdjust="spacing">Querying</text>
 <text class="crt" x="75.6" y="86" fill="#d4d4d4" textLength="50.4" lengthAdjust="spacing">modern</text>
@@ -122,18 +122,18 @@ text {
 <text class="crt" x="109.2" y="320" fill="#23d18b" textLength="42" lengthAdjust="spacing">Asset</text>
 <text class="crt" x="159.6" y="320" fill="#23d18b" textLength="16.8" lengthAdjust="spacing">ID</text>
 <text class="crt" x="184.8" y="320" fill="#23d18b" textLength="8.4" lengthAdjust="spacing">:</text>
-<text class="crt" x="201.6" y="320" fill="#23d18b" textLength="84" lengthAdjust="spacing">1776057825</text>
-<text class="crt" x="8.4" y="338" fill="#23d18b" textLength="16.8" lengthAdjust="spacing">-&gt;</text>
+<text class="crt" x="201.6" y="320" fill="#23d18b" textLength="84" lengthAdjust="spacing">9999999999</text>
+<text class="crt" x="8.4" y="338" fill="#23d18b" textLength="16.8" stroke-linejoin="round">-&gt;</text>
 <text class="crt" x="33.6" y="338" fill="#23d18b" textLength="42" lengthAdjust="spacing">Asset</text>
 <text class="crt" x="84" y="338" fill="#23d18b" textLength="33.6" lengthAdjust="spacing">Name</text>
 <text class="crt" x="126" y="338" fill="#23d18b" textLength="50.4" lengthAdjust="spacing">Record</text>
 <text class="crt" x="184.8" y="338" fill="#23d18b" textLength="8.4" lengthAdjust="spacing">:</text>
-<text class="crt" x="201.6" y="338" fill="#23d18b" textLength="92.4" lengthAdjust="spacing">EITS-319175</text>
+<text class="crt" x="201.6" y="338" fill="#23d18b" textLength="92.4" lengthAdjust="spacing">ACME-123456</text>
 <text class="crt" x="8.4" y="356" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">-&gt;</text>
 <text class="crt" x="33.6" y="356" fill="#f5f543" textLength="58.8" lengthAdjust="spacing">Current</text>
 <text class="crt" x="100.8" y="356" fill="#f5f543" textLength="67.2" lengthAdjust="spacing">Tracking</text>
 <text class="crt" x="176.4" y="356" fill="#f5f543" textLength="25.2" lengthAdjust="spacing">IP:</text>
 <text class="crt" x="210" y="356" fill="#f5f543" textLength="33.6" lengthAdjust="spacing">&lt;not</text>
-<text class="crt" x="252" y="356" fill="#f5f543" textLength="75.6" lengthAdjust="spacing">returned&gt;</text>
+<text class="crt" x="252" y="356" fill="#f5f543" textLength="75.6" lengthAdjust="spacing">&lt;returned&gt;</text>
 </g>
 </svg>
