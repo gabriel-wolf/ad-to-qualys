@@ -1,6 +1,7 @@
 $SecretDirectory = "<secret-directory>"
 $SecretPath = "$SecretDirectory\<secret-file-name.enc>"
 
+
 if (-not (Test-Path $SecretDirectory)) {
     New-Item -ItemType Directory -Path $SecretDirectory -Force | Out-Null
 }
