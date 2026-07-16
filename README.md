@@ -159,7 +159,7 @@ The script:
 - Registers tasks with elevated privileges
 - Runs the tasks in the background whether or not the service account is signed in interactively
 
-You will need admin permissions. Additionally you may need to add the user account to the following policy: secpol.msc → Local Policies → User Rights Assignment → Log on as a batch job.
+The scheduled-task service account may need to be granted the Log on as a batch job user right on the execution host and must not be included in Deny log on as a batch job.
 
 ---
 
