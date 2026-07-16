@@ -61,6 +61,7 @@ $EnvironmentConfig = @{
 
 $ActiveProfile = $EnvironmentConfig[$TargetMode]
 
+
 # =========================================================================
 # Paths
 # =========================================================================
@@ -217,7 +218,7 @@ function Get-QualysAssetsByTag {
         }
     }
 
-    $AssetSearchURL = "https://$QualysPlatform/qps/rest/2.0/search/am/asset"
+    $AssetSearchURL = "https://$QualysPlatform/qps/rest/2.0/search/am/hostasset"
 
     $Assets = [System.Collections.Generic.List[object]]::new()
 
@@ -265,7 +266,7 @@ $PaginationFilter
             [xml]$XmlResult = $Response.Content
 
             $AssetNodes = @(
-                $XmlResult.SelectNodes("//Asset")
+                $XmlResult.SelectNodes("//HostAsset")
             )
 
             foreach ($AssetNode in $AssetNodes) {
@@ -394,7 +395,7 @@ function Resolve-QualysAssetIds {
 
     $MatchedComputerCount = 0
     $DeviceResults = [System.Collections.Generic.List[object]]::new()
-    $AssetSearchURL = "https://$QualysPlatform/qps/rest/2.0/search/am/asset"
+    $AssetSearchURL = "https://$QualysPlatform/qps/rest/2.0/search/am/hostasset"
 
     foreach ($ComputerName in $ComputerNames) {
         $CleanName = $ComputerName.Trim()
@@ -443,7 +444,7 @@ function Resolve-QualysAssetIds {
                 [xml]$XmlResult = $Response.Content
 
                 $AssetNodes = @(
-                    $XmlResult.SelectNodes("//Asset")
+                    $XmlResult.SelectNodes("//HostAsset")
                 )
 
                 foreach ($AssetNode in $AssetNodes) {
@@ -1160,8 +1161,8 @@ if ($QualysTargetComputersList.Count -gt 0) {
     $DepartmentFound = $false
 
     $DepartmentTagNames = @(
-        "AD - $($DepartmentName.ToUpperInvariant())"
-        "AD - $($DepartmentName.ToLowerInvariant())"
+        "MSAD - $($DepartmentName.ToUpperInvariant())"
+        "MSAD - $($DepartmentName.ToLowerInvariant())"
     ) | Select-Object -Unique
 
     foreach ($DepartmentTagName in $DepartmentTagNames) {
@@ -1405,6 +1406,41 @@ else {
 }
 
 # =========================================================================
+# Verify Final Qualys Patch-Management Tag Membership
+# =========================================================================
+
+$VerifiedTargetAssetIds = [System.Collections.Generic.HashSet[string]]::new(
+    [System.StringComparer]::OrdinalIgnoreCase
+)
+
+$VerificationSucceeded = $false
+
+if (-not [string]::IsNullOrWhiteSpace($TargetTagId)) {
+    Log-Message "=========================================================" "Cyan"
+    Log-Message "VERIFYING FINAL QUALYS PATCH-MANAGEMENT TAG MEMBERSHIP" "Cyan"
+    Log-Message "=========================================================" "Cyan"
+
+    $VerificationResult = Get-QualysAssetsByTag `
+        -TagName $ActiveProfile.QualysTag `
+        -Headers $Headers `
+        -QualysPlatform $QualysPlatform
+
+    if ($VerificationResult.Success) {
+        foreach ($Asset in $VerificationResult.Assets) {
+            if (-not [string]::IsNullOrWhiteSpace($Asset.AssetId)) {
+                $VerifiedTargetAssetIds.Add($Asset.AssetId) | Out-Null
+            }
+        }
+
+        $VerificationSucceeded = $true
+        Log-Message "Verified $($VerifiedTargetAssetIds.Count) asset(s) currently assigned to Qualys tag '$($ActiveProfile.QualysTag)'." "Green"
+    }
+    else {
+        Log-Message "ERROR: Final Qualys tag membership verification failed." "Red"
+    }
+}
+
+# =========================================================================
 # Export Qualys Tag Results
 # =========================================================================
 
@@ -1427,48 +1463,43 @@ $QualysResults = @(
             @()
         }
 
-        $SuccessfulIds = @(
-            $AssetIds | Where-Object { $SuccessfulTagAssetIds.Contains($_) }
+        $VerifiedIds = @(
+            $AssetIds |
+                Where-Object {
+                    $VerifiedTargetAssetIds.Contains($_)
+                }
         )
 
-        $FailedIds = @(
-            $AssetIds | Where-Object { $FailedTagAssetIds.Contains($_) }
+        $MissingIds = @(
+            $AssetIds |
+                Where-Object {
+                    -not $VerifiedTargetAssetIds.Contains($_)
+                }
         )
 
         $Status = "Failed"
         $FailureDescription = ""
 
-        if ($AssetIds.Count -eq 0) {
+        if (-not $VerificationSucceeded) {
+            $FailureDescription = "Final Qualys patch-management tag verification could not be completed."
+        }
+        elseif ($AssetIds.Count -eq 0) {
             $FailureDescription = if ($DeviceResolutionFailureMap.ContainsKey($ComputerName)) {
                 $DeviceResolutionFailureMap[$ComputerName]
             }
             else {
-                "No matching Qualys asset was found through department tags or hostname lookup."
+                "No matching Qualys Host Asset record was found through department tags or hostname lookup."
             }
         }
-        elseif ($SuccessfulIds.Count -gt 0 -and $FailedIds.Count -eq 0) {
-            $Status = "Tag Applied or Already Present"
+        elseif ($VerifiedIds.Count -eq $AssetIds.Count) {
+            $Status = "Verified"
         }
-        elseif ($SuccessfulIds.Count -gt 0 -and $FailedIds.Count -gt 0) {
-            $Status = "Partially Applied"
-            $FailureDescription = @(
-                $FailedIds |
-                    ForEach-Object { $TagFailureReasons[$_] } |
-                    Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
-                    Sort-Object -Unique
-            ) -join " | "
+        elseif ($VerifiedIds.Count -gt 0) {
+            $Status = "Partially Verified"
+            $FailureDescription = "Some resolved Qualys Host Asset IDs were not present in the final patch-management tag: $($MissingIds -join '; ')"
         }
         else {
-            $FailureDescription = @(
-                $FailedIds |
-                    ForEach-Object { $TagFailureReasons[$_] } |
-                    Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
-                    Sort-Object -Unique
-            ) -join " | "
-
-            if ([string]::IsNullOrWhiteSpace($FailureDescription)) {
-                $FailureDescription = "Qualys asset IDs were resolved, but the patch-management tag update was not accepted."
-            }
+            $FailureDescription = "Resolved Qualys Host Asset IDs were not present in the final patch-management tag: $($MissingIds -join '; ')"
         }
 
         [pscustomobject]@{
@@ -1484,8 +1515,7 @@ $QualysResults = @(
 $QualysFailureResults = @(
     $QualysResults |
         Where-Object {
-            $_.Status -eq "Failed" -or
-            $_.Status -eq "Partially Applied"
+            $_.Status -ne "Verified"
         }
 )
 
@@ -1496,7 +1526,7 @@ $QualysFailureResults |
         -Encoding UTF8 `
         -Force
 
-Log-Message "Exported $($QualysFailureResults.Count) Qualys tag failure row(s) to '$QualysResultsCsv'." "Yellow"
+Log-Message "Exported $($QualysFailureResults.Count) verified Qualys tag failure row(s) to '$QualysResultsCsv'." "Yellow"
 
 # =========================================================================
 # Final Summary
@@ -1507,8 +1537,6 @@ Log-Message " Active Directory computers added: $GlobalAddedCount" "Green"
 Log-Message " Active Directory computers removed: $GlobalRemovedCount" "Yellow"
 Log-Message " Final Active Directory group membership: $FinalCount" "White"
 
-Log-Message " Department tag lookup attempts: $DepartmentTagSearchCount" "White"
-Log-Message " Department tag variants not found or unresolved: $DepartmentTagSearchFailureCount" "White"
 Log-Message " Qualys assets evaluated from department tags: $DepartmentTagAssetsEvaluated" "White"
 Log-Message " Active Directory members matched through department tags: $($DepartmentMatchedComputerNames.Count)" "Green"
 Log-Message " Unique Qualys asset IDs resolved through department tags: $($DepartmentTagAssetIds.Count)" "White"
@@ -1526,6 +1554,8 @@ if ($RemoveResolutionResult) {
     Log-Message " Unique Qualys asset IDs submitted for tag removal: $($RemoveResolutionResult.AssetIds.Count)" "White"
 }
 
+Log-Message " Final Qualys tag membership verification successful: $VerificationSucceeded" "White"
+Log-Message " Verified Qualys asset IDs currently in target tag: $($VerifiedTargetAssetIds.Count)" "White"
 Log-Message " Qualys patch-management tag addition request successful: $QualysAddSucceeded" "White"
 Log-Message " Qualys patch-management tag removal request successful: $QualysRemoveSucceeded" "White"
 Log-Message "=========================================================`n" "Cyan"
