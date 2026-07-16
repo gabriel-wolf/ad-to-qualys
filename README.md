@@ -96,6 +96,23 @@ This verification prevents an accepted API response from being treated as proof 
 
 ---
 
+## Successful Execution Examples
+
+> [!NOTE]
+> Your output will depend on what you booleans you have set to true/false. 
+
+
+<img src="./imgs/getqualysasset-1.svg"
+     alt="Sanitized Get Qualys Asset console output"
+     width="100%">
+     
+<img src="./imgs/ad-to-qualys-sanitized-condensed.svg"
+     alt="Sanitized AD-to-Qualys automation console output"
+     width="100%">
+
+
+---
+
 ## Project Files
 
 ### [`Automation.ps1`](Automation.ps1)
@@ -270,15 +287,6 @@ hosts.txt
 sync_log.txt
 qualys_tag_failures.csv
 ```
-
----
-
-## Successful Execution Examples
-
-![Successful Qualys asset lookup](imgs/get-asset-run-1.png)
-![Successful AD-to-Qualys automation run](imgs/main-script-2.png)
-![Successful AD-to-Qualys automation run](imgs/main-script-5.png)
-![Successful AD-to-Qualys automation run](imgs/main-script-7.png)
 
 ---
 
