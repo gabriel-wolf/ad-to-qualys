@@ -102,10 +102,6 @@ This verification prevents an accepted API response from being treated as proof 
 > Your output will depend on what parameters you have set in the code. These examples have been sanitized. 
 
 
-<img src="./imgs/getqualysasset-1.svg"
-     alt="Sanitized Get Qualys Asset console output"
-     width="100%">
-     
 <img src="./imgs/ad-to-qualys-sanitized-condensed.svg"
      alt="Sanitized AD-to-Qualys automation console output"
      width="100%">
