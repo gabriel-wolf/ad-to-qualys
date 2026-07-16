@@ -1557,5 +1557,9 @@ if ($RemoveResolutionResult) {
 Log-Message " Final Qualys tag membership verification successful: $VerificationSucceeded" "White"
 Log-Message " Verified Qualys asset IDs currently in target tag: $($VerifiedTargetAssetIds.Count)" "White"
 Log-Message " Qualys patch-management tag addition request successful: $QualysAddSucceeded" "White"
-Log-Message " Qualys patch-management tag removal request successful: $QualysRemoveSucceeded" "White"
-Log-Message "=========================================================`n" "Cyan"
+if ($QualysRemovedComputersList.Count -eq 0) {
+    Log-Message " Qualys patch-management tag removal: Not required" "Gray"
+}
+else {
+    Log-Message " Qualys patch-management tag removal request successful: $QualysRemoveSucceeded" "White"
+}Log-Message "=========================================================`n" "Cyan"
