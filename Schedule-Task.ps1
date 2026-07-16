@@ -9,20 +9,33 @@ $TargetDomain = "<CONTOSO>"
 $ServiceUser  = "<user>"
 # ==============================================================================
 
-$Action = New-ScheduledTaskAction -Execute "powershell.exe" `
-    -Argument "-NoProfile -ExecutionPolicy Bypass -File '$ScriptPath' -TargetMode $TargetMode"
+$Action = New-ScheduledTaskAction `
+    -Execute "powershell.exe" `
+    -Argument "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$ScriptPath`" -TargetMode $TargetMode" `
+    -WorkingDirectory $ScriptDirectory
 
-$Trigger = New-ScheduledTaskTrigger -Daily -At $RunTime
+$Trigger = New-ScheduledTaskTrigger `
+    -Daily `
+    -At $RunTime
 
-$Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -RunOnlyIfNetworkAvailable
+$Settings = New-ScheduledTaskSettingsSet `
+    -StartWhenAvailable `
+    -RunOnlyIfNetworkAvailable `
+    -AllowStartIfOnBatteries `
+    -DontStopIfGoingOnBatteries `
+    -MultipleInstances IgnoreNew `
+    -ExecutionTimeLimit ([TimeSpan]::Zero)
 
-$DefaultDomainUser = "$TargetDomain\$ServiceUser"
-$Creds = Get-Credential -UserName $DefaultDomainUser -Message "Enter the service account password to authorize the task registration"
+$Creds = Get-Credential `
+    -UserName $TaskUser `
+    -Message "Enter the service account password"
 
-Register-ScheduledTask -TaskName $TaskName `
+Register-ScheduledTask `
+    -TaskName $TaskName `
     -Action $Action `
     -Trigger $Trigger `
     -Settings $Settings `
     -User $Creds.UserName `
-    -Password ($Creds.GetNetworkCredential().Password) `
-    -RunLevel Highest
+    -Password $Creds.GetNetworkCredential().Password `
+    -RunLevel Highest `
+    -Force
