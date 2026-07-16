@@ -273,6 +273,15 @@ qualys_tag_failures.csv
 
 ---
 
+## Successful Execution Examples
+
+![Successful Qualys asset lookup](imgs/get-asset-run-1.png)
+![Successful AD-to-Qualys automation run](imgs/main-script-2.png)
+![Successful AD-to-Qualys automation run](imgs/main-script-5.png)
+![Successful AD-to-Qualys automation run](imgs/main-script-7.png)
+
+---
+
 ## Requirements
 
 ### PowerShell and Windows
@@ -516,15 +525,6 @@ qualys_password.enc
 *.local.ps1
 test-output/
 ```
-
----
-
-## Successful Execution Examples
-
-![Successful Qualys asset lookup](imgs/get-asset-run-1.png)
-![Successful AD-to-Qualys automation run](imgs/main-script-2.png)
-![Successful AD-to-Qualys automation run](imgs/main-script-5.png)
-![Successful AD-to-Qualys automation run](imgs/main-script-6.png)
 
 ---
 
