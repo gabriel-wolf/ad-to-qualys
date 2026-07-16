@@ -1,0 +1,139 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1072" height="530" viewBox="0 0 1072 530" role="img" aria-label="console2svg output">
+<style>
+.crt {
+  font-family: ui-monospace,"JetBrains Mono","Cascadia Mono","Segoe UI Mono","Noto Sans Mono","SFMono-Regular",Menlo,Consolas,monospace;
+  font-size: 14px;
+}
+text {
+  dominant-baseline: alphabetic;
+}
+.bg {
+  shape-rendering: crispEdges;
+}
+</style>
+<rect width="1072" height="530" fill="transparent"/>
+<rect x="26" y="26" width="1026" height="484" fill="black" fill-opacity="0.25"/>
+<rect x="20.5" y="20.5" width="1025" height="483" fill="#333" stroke="#333"/>
+<rect x="21" y="21" width="1024" height="34" fill="#333"/>
+<path d="M 28,55 L 28,31 Q 28,26 33,26 L 183,26 Q 188,26 188,31 L 188,55 Z" fill="#0c0c0c"/>
+<polyline points="36,35.5 40,39.5 36,43.5" fill="none" stroke="#cccccc" stroke-width="1.2" stroke-linejoin="round"/>
+<line x1="43" y1="44" x2="49" y2="44" stroke="#cccccc" stroke-width="1.2"/>
+<line x1="172.5" y1="36" x2="179.5" y2="43" stroke="#888888" stroke-width="1.1"/>
+<line x1="179.5" y1="36" x2="172.5" y2="43" stroke="#888888" stroke-width="1.1"/>
+<line x1="926" y1="39.5" x2="936" y2="39.5" stroke="#cccccc" stroke-width="1.2"/>
+<rect x="972" y="34.5" width="10" height="10" fill="none" stroke="#cccccc" stroke-width="1.2"/>
+<line x1="1018" y1="34.5" x2="1028" y2="44.5" stroke="#cccccc" stroke-width="1.3"/>
+<line x1="1028" y1="34.5" x2="1018" y2="44.5" stroke="#cccccc" stroke-width="1.3"/>
+<rect x="21" y="55" width="1024" height="448" fill="#0c0c0c"/>
+<g transform="translate(29 63)">
+<rect width="1008" height="432" fill="#0c0c0c"/>
+<text class="crt" x="0" y="14" fill="#23d18b" textLength="50.4" lengthAdjust="spacing">[INIT]</text>
+<text class="crt" x="58.8" y="14" fill="#23d18b" textLength="50.4" lengthAdjust="spacing">Qualys</text>
+<text class="crt" x="117.6" y="14" fill="#23d18b" textLength="25.2" lengthAdjust="spacing">API</text>
+<text class="crt" x="151.2" y="14" fill="#23d18b" textLength="25.2" lengthAdjust="spacing">Key</text>
+<text class="crt" x="184.8" y="14" fill="#23d18b" textLength="50.4" lengthAdjust="spacing">loaded</text>
+<text class="crt" x="243.6" y="14" fill="#23d18b" textLength="84" lengthAdjust="spacing">hands-free</text>
+<text class="crt" x="336" y="14" fill="#23d18b" textLength="33.6" lengthAdjust="spacing">into</text>
+<text class="crt" x="378" y="14" fill="#23d18b" textLength="58.8" lengthAdjust="spacing">memory.</text>
+<text class="crt" x="0" y="32" fill="#29b8db" textLength="478.8" lengthAdjust="spacing">=========================================================</text>
+<text class="crt" x="0" y="50" fill="#29b8db" textLength="58.8" lengthAdjust="spacing">RUNNING</text>
+<text class="crt" x="67.2" y="50" fill="#29b8db" textLength="16.8" lengthAdjust="spacing">V2</text>
+<text class="crt" x="92.4" y="50" fill="#29b8db" textLength="42" lengthAdjust="spacing">ASSET</text>
+<text class="crt" x="142.8" y="50" fill="#29b8db" textLength="50.4" lengthAdjust="spacing">SEARCH</text>
+<text class="crt" x="201.6" y="50" fill="#29b8db" textLength="33.6" lengthAdjust="spacing">FOR:</text>
+<text class="crt" x="243.6" y="50" fill="#29b8db" textLength="92.4" lengthAdjust="spacing">EITS-319175</text>
+<text class="crt" x="0" y="68" fill="#29b8db" textLength="478.8" lengthAdjust="spacing">=========================================================</text>
+<text class="crt" x="0" y="86" fill="#d4d4d4" textLength="67.2" lengthAdjust="spacing">Querying</text>
+<text class="crt" x="75.6" y="86" fill="#d4d4d4" textLength="50.4" lengthAdjust="spacing">modern</text>
+<text class="crt" x="134.4" y="86" fill="#d4d4d4" textLength="50.4" lengthAdjust="spacing">Qualys</text>
+<text class="crt" x="193.2" y="86" fill="#d4d4d4" textLength="42" lengthAdjust="spacing">Asset</text>
+<text class="crt" x="243.6" y="86" fill="#d4d4d4" textLength="84" lengthAdjust="spacing">Management</text>
+<text class="crt" x="336" y="86" fill="#d4d4d4" textLength="42" lengthAdjust="spacing">index</text>
+<text class="crt" x="386.4" y="86" fill="#d4d4d4" textLength="16.8" lengthAdjust="spacing">by</text>
+<text class="crt" x="411.6" y="86" fill="#d4d4d4" textLength="58.8" lengthAdjust="spacing">name...</text>
+<text class="crt" x="0" y="122" fill="#ffffff" textLength="67.2" lengthAdjust="spacing">Security</text>
+<text class="crt" x="75.6" y="122" fill="#ffffff" textLength="67.2" lengthAdjust="spacing">Warning:</text>
+<text class="crt" x="151.2" y="122" fill="#ffffff" textLength="50.4" lengthAdjust="spacing">Script</text>
+<text class="crt" x="210" y="122" fill="#ffffff" textLength="75.6" lengthAdjust="spacing">Execution</text>
+<text class="crt" x="294" y="122" fill="#ffffff" textLength="33.6" lengthAdjust="spacing">Risk</text>
+<text class="crt" x="0" y="140" fill="#d4d4d4" textLength="142.8" lengthAdjust="spacing">Invoke-WebRequest</text>
+<text class="crt" x="151.2" y="140" fill="#d4d4d4" textLength="50.4" lengthAdjust="spacing">parses</text>
+<text class="crt" x="210" y="140" fill="#d4d4d4" textLength="25.2" lengthAdjust="spacing">the</text>
+<text class="crt" x="243.6" y="140" fill="#d4d4d4" textLength="58.8" lengthAdjust="spacing">content</text>
+<text class="crt" x="310.8" y="140" fill="#d4d4d4" textLength="16.8" lengthAdjust="spacing">of</text>
+<text class="crt" x="336" y="140" fill="#d4d4d4" textLength="25.2" lengthAdjust="spacing">the</text>
+<text class="crt" x="369.6" y="140" fill="#d4d4d4" textLength="25.2" lengthAdjust="spacing">web</text>
+<text class="crt" x="403.2" y="140" fill="#d4d4d4" textLength="42" lengthAdjust="spacing">page.</text>
+<text class="crt" x="453.6" y="140" fill="#d4d4d4" textLength="50.4" lengthAdjust="spacing">Script</text>
+<text class="crt" x="512.4" y="140" fill="#d4d4d4" textLength="33.6" lengthAdjust="spacing">code</text>
+<text class="crt" x="554.4" y="140" fill="#d4d4d4" textLength="16.8" lengthAdjust="spacing">in</text>
+<text class="crt" x="579.6" y="140" fill="#d4d4d4" textLength="25.2" lengthAdjust="spacing">the</text>
+<text class="crt" x="613.2" y="140" fill="#d4d4d4" textLength="25.2" lengthAdjust="spacing">web</text>
+<text class="crt" x="646.8" y="140" fill="#d4d4d4" textLength="33.6" lengthAdjust="spacing">page</text>
+<text class="crt" x="688.8" y="140" fill="#d4d4d4" textLength="42" lengthAdjust="spacing">might</text>
+<text class="crt" x="739.2" y="140" fill="#d4d4d4" textLength="16.8" lengthAdjust="spacing">be</text>
+<text class="crt" x="764.4" y="140" fill="#d4d4d4" textLength="25.2" lengthAdjust="spacing">run</text>
+<text class="crt" x="798" y="140" fill="#d4d4d4" textLength="33.6" lengthAdjust="spacing">when</text>
+<text class="crt" x="840" y="140" fill="#d4d4d4" textLength="25.2" lengthAdjust="spacing">the</text>
+<text class="crt" x="873.6" y="140" fill="#d4d4d4" textLength="33.6" lengthAdjust="spacing">page</text>
+<text class="crt" x="915.6" y="140" fill="#d4d4d4" textLength="16.8" lengthAdjust="spacing">is</text>
+<text class="crt" x="0" y="158" fill="#d4d4d4" textLength="58.8" lengthAdjust="spacing">parsed.</text>
+<text class="crt" x="50.4" y="176" fill="#d4d4d4" textLength="92.4" lengthAdjust="spacing">RECOMMENDED</text>
+<text class="crt" x="151.2" y="176" fill="#d4d4d4" textLength="58.8" lengthAdjust="spacing">ACTION:</text>
+<text class="crt" x="50.4" y="194" fill="#d4d4d4" textLength="25.2" lengthAdjust="spacing">Use</text>
+<text class="crt" x="84" y="194" fill="#d4d4d4" textLength="25.2" lengthAdjust="spacing">the</text>
+<text class="crt" x="117.6" y="194" fill="#d4d4d4" textLength="134.4" lengthAdjust="spacing">-UseBasicParsing</text>
+<text class="crt" x="260.4" y="194" fill="#d4d4d4" textLength="50.4" lengthAdjust="spacing">switch</text>
+<text class="crt" x="319.2" y="194" fill="#d4d4d4" textLength="16.8" lengthAdjust="spacing">to</text>
+<text class="crt" x="344.4" y="194" fill="#d4d4d4" textLength="42" lengthAdjust="spacing">avoid</text>
+<text class="crt" x="394.8" y="194" fill="#d4d4d4" textLength="50.4" lengthAdjust="spacing">script</text>
+<text class="crt" x="453.6" y="194" fill="#d4d4d4" textLength="33.6" lengthAdjust="spacing">code</text>
+<text class="crt" x="495.6" y="194" fill="#d4d4d4" textLength="84" lengthAdjust="spacing">execution.</text>
+<text class="crt" x="50.4" y="230" fill="#d4d4d4" textLength="16.8" lengthAdjust="spacing">Do</text>
+<text class="crt" x="75.6" y="230" fill="#d4d4d4" textLength="25.2" lengthAdjust="spacing">you</text>
+<text class="crt" x="109.2" y="230" fill="#d4d4d4" textLength="33.6" lengthAdjust="spacing">want</text>
+<text class="crt" x="151.2" y="230" fill="#d4d4d4" textLength="16.8" lengthAdjust="spacing">to</text>
+<text class="crt" x="176.4" y="230" fill="#d4d4d4" textLength="75.6" lengthAdjust="spacing">continue?</text>
+<text class="crt" x="0" y="266" fill="#ffffff" textLength="25.2" lengthAdjust="spacing">[Y]</text>
+<text class="crt" x="33.6" y="266" fill="#ffffff" textLength="25.2" lengthAdjust="spacing">Yes</text>
+<text class="crt" x="75.6" y="266" fill="#ffffff" textLength="25.2" lengthAdjust="spacing">[A]</text>
+<text class="crt" x="109.2" y="266" fill="#ffffff" textLength="25.2" lengthAdjust="spacing">Yes</text>
+<text class="crt" x="142.8" y="266" fill="#ffffff" textLength="16.8" lengthAdjust="spacing">to</text>
+<text class="crt" x="168" y="266" fill="#ffffff" textLength="25.2" lengthAdjust="spacing">All</text>
+<text class="crt" x="210" y="266" fill="#f5f543" textLength="25.2" lengthAdjust="spacing">[N]</text>
+<text class="crt" x="243.6" y="266" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">No</text>
+<text class="crt" x="277.2" y="266" fill="#ffffff" textLength="25.2" lengthAdjust="spacing">[L]</text>
+<text class="crt" x="310.8" y="266" fill="#ffffff" textLength="16.8" lengthAdjust="spacing">No</text>
+<text class="crt" x="336" y="266" fill="#ffffff" textLength="16.8" lengthAdjust="spacing">to</text>
+<text class="crt" x="361.2" y="266" fill="#ffffff" textLength="25.2" lengthAdjust="spacing">All</text>
+<text class="crt" x="403.2" y="266" fill="#ffffff" textLength="25.2" lengthAdjust="spacing">[S]</text>
+<text class="crt" x="436.8" y="266" fill="#ffffff" textLength="58.8" lengthAdjust="spacing">Suspend</text>
+<text class="crt" x="512.4" y="266" fill="#d4d4d4" textLength="25.2" lengthAdjust="spacing">[?]</text>
+<text class="crt" x="546" y="266" fill="#d4d4d4" textLength="33.6" lengthAdjust="spacing">Help</text>
+<text class="crt" x="588" y="266" fill="#d4d4d4" textLength="67.2" lengthAdjust="spacing">(default</text>
+<text class="crt" x="663.6" y="266" fill="#d4d4d4" textLength="16.8" lengthAdjust="spacing">is</text>
+<text class="crt" x="688.8" y="266" fill="#d4d4d4" textLength="42" lengthAdjust="spacing">&quot;N&quot;):</text>
+<text class="crt" x="739.2" y="266" fill="#d4d4d4" textLength="8.4" lengthAdjust="spacing">a</text>
+<text class="crt" x="0" y="302" fill="#23d18b" textLength="58.8" lengthAdjust="spacing">[QUALYS</text>
+<text class="crt" x="67.2" y="302" fill="#23d18b" textLength="42" lengthAdjust="spacing">MATCH</text>
+<text class="crt" x="117.6" y="302" fill="#23d18b" textLength="58.8" lengthAdjust="spacing">FOUND!]</text>
+<text class="crt" x="8.4" y="320" fill="#23d18b" textLength="16.8" lengthAdjust="spacing">-&gt;</text>
+<text class="crt" x="33.6" y="320" fill="#23d18b" textLength="67.2" lengthAdjust="spacing">Resolved</text>
+<text class="crt" x="109.2" y="320" fill="#23d18b" textLength="42" lengthAdjust="spacing">Asset</text>
+<text class="crt" x="159.6" y="320" fill="#23d18b" textLength="16.8" lengthAdjust="spacing">ID</text>
+<text class="crt" x="184.8" y="320" fill="#23d18b" textLength="8.4" lengthAdjust="spacing">:</text>
+<text class="crt" x="201.6" y="320" fill="#23d18b" textLength="84" lengthAdjust="spacing">1776057825</text>
+<text class="crt" x="8.4" y="338" fill="#23d18b" textLength="16.8" lengthAdjust="spacing">-&gt;</text>
+<text class="crt" x="33.6" y="338" fill="#23d18b" textLength="42" lengthAdjust="spacing">Asset</text>
+<text class="crt" x="84" y="338" fill="#23d18b" textLength="33.6" lengthAdjust="spacing">Name</text>
+<text class="crt" x="126" y="338" fill="#23d18b" textLength="50.4" lengthAdjust="spacing">Record</text>
+<text class="crt" x="184.8" y="338" fill="#23d18b" textLength="8.4" lengthAdjust="spacing">:</text>
+<text class="crt" x="201.6" y="338" fill="#23d18b" textLength="92.4" lengthAdjust="spacing">EITS-319175</text>
+<text class="crt" x="8.4" y="356" fill="#f5f543" textLength="16.8" lengthAdjust="spacing">-&gt;</text>
+<text class="crt" x="33.6" y="356" fill="#f5f543" textLength="58.8" lengthAdjust="spacing">Current</text>
+<text class="crt" x="100.8" y="356" fill="#f5f543" textLength="67.2" lengthAdjust="spacing">Tracking</text>
+<text class="crt" x="176.4" y="356" fill="#f5f543" textLength="25.2" lengthAdjust="spacing">IP:</text>
+<text class="crt" x="210" y="356" fill="#f5f543" textLength="33.6" lengthAdjust="spacing">&lt;not</text>
+<text class="crt" x="252" y="356" fill="#f5f543" textLength="75.6" lengthAdjust="spacing">returned&gt;</text>
+</g>
+</svg>
