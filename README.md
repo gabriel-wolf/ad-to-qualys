@@ -39,25 +39,27 @@ The automation performs the following operations:
 9. Prevents removals when one or more configured OUs cannot be successfully resolved or queried.
 10. Compiles the reconciled group membership into a list of hostnames.
 11. Resolves the configured Qualys patch-management tag by name.
-12. Builds department tag names from the configured OU list and searches Qualys for both uppercase and lowercase variants.
+12. Builds department tag names from the configured OU list and searches Qualys for both uppercase and lowercase variants:
     * `AD - DEPARTMENT`
     * `AD - department`
-13. Retrieves all assets assigned to each matching department tag, including paginated results.
-14. Normalizes the returned Qualys asset names and compares them against the final Active Directory group membership.
-15. Collects and deduplicates asset IDs only for devices that remain in the authoritative AD scope.
-16. Identifies stragglers as final AD group members that were not matched through a department Qualys tag.
-17. Resolves only those stragglers through the Qualys Asset Management API by testing four hostname formats:
+13. Retrieves all Qualys Host Asset records assigned to each matching department tag, including paginated results.
+14. Normalizes the returned Qualys hostnames and compares them against the final Active Directory group membership.
+15. Collects and deduplicates Host Asset IDs only for devices that remain in the authoritative AD scope.
+16. Identifies unmatched devices as final AD group members that were not resolved through a department Qualys tag.
+17. Resolves only those unmatched devices through the Qualys Host Asset API by testing four hostname formats:
     * Lowercase fully qualified domain name
     * Uppercase fully qualified domain name
     * Lowercase short hostname
     * Uppercase short hostname
-18. Combines and deduplicates asset IDs returned through department-tag collection and hostname-based straggler resolution.
-19. Applies the patch-management tag to current assets in smaller bulk batches to avoid oversized Qualys update requests.
-20. Tracks computers successfully removed from the Active Directory group and resolves their Qualys asset IDs by hostname.
-21. Prevents tag removal from any asset that is also present in the current authoritative target set.
-22. Removes the patch-management tag in bulk from assets associated with computers successfully removed from the AD group.
-23. Reports which department tags were found and which were not found after both capitalization variants are tested.
-24. Writes execution details, reconciliation results, API activity, batch status, and summary statistics to a local log.
+18. Combines and deduplicates Host Asset IDs returned through department-tag collection and hostname-based fallback resolution.
+19. Applies the patch-management tag to current assets in smaller batches to avoid oversized Qualys update requests.
+20. Tracks computers successfully removed from the Active Directory group and resolves their Qualys Host Asset IDs by hostname.
+21. Prevents tag removal from any Host Asset ID that is also present in the current authoritative target set.
+22. Removes the patch-management tag in batches from assets associated with computers successfully removed from the AD group.
+23. Re-queries the Qualys patch-management tag after updates to verify actual final tag membership.
+24. Reports which department tags were found and which were not found after both capitalization variants are tested.
+25. Exports unresolved, partially verified, or unverified devices to `qualys_tag_failures.csv`.
+26. Writes execution details, reconciliation results, API activity, batch results, verification results, and summary statistics to a local log.
 
 This creates a two-way onboarding and offboarding workflow. Newly eligible systems are added to the appropriate Active Directory group, matched through their department Qualys tags whenever possible, and assigned the corresponding patch-management tag. Devices that cannot be matched through department tags are resolved individually as stragglers.
 
