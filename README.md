@@ -118,9 +118,6 @@ Creates the encrypted Qualys credential used by the automation and diagnostic sc
 
 The script must be run under the same Windows account that will execute the scheduled automation unless the encrypted credential is regenerated under a new execution identity.
 
-<details>
-  <summary>Credential protection details</summary>
-
 The credential is entered as a PowerShell `SecureString` and stored using Windows DPAPI protection associated with the current user context.
 
 This prevents the credential from being:
@@ -132,14 +129,11 @@ This prevents the credential from being:
 
 The encrypted file and its containing directory should be restricted through appropriate filesystem permissions.
 
-</details>
 
 ### [`Get-QualysAsset.ps1`](Get-QualysAsset.ps1)
 
 A diagnostic utility for validating Qualys API connectivity and resolving an individual asset by hostname.
 
-<details>
-  <summary>View diagnostic behavior</summary>
 
 The script:
 
@@ -150,14 +144,10 @@ The script:
 - Displays the asset name
 - Displays the current tracking IP when available
 
-</details>
 
 ### [`Schedule-Task.ps1`](Schedule-Task.ps1)
 
 Registers the workstation and server automation runs in Windows Task Scheduler.
-
-<details>
-  <summary>View scheduled-task behavior</summary>
 
 The script:
 
@@ -169,7 +159,6 @@ The script:
 - Registers tasks with elevated privileges
 - Runs the tasks in the background whether or not the service account is signed in interactively
 
-</details>
 
 ---
 
@@ -531,30 +520,16 @@ test-output/
 
 ## Successful Execution Examples
 
-<details>
-  <summary>View individual Qualys asset lookup</summary>
-
 ![Successful Qualys asset lookup](imgs/get-asset-run-1.png)
-
-</details>
-
-<details>
-  <summary>View automated AD-to-Qualys synchronization</summary>
-
 ![Successful AD-to-Qualys automation run](imgs/main-script-2.png)
 ![Successful AD-to-Qualys automation run](imgs/main-script-5.png)
 ![Successful AD-to-Qualys automation run](imgs/main-script-6.png)
-
-</details>
 
 ---
 
 ## Error Handling
 
 The automation stops, skips processing, or enables the removal safety lock when required to protect the managed scope.
-
-<details>
-  <summary>View handled error conditions</summary>
 
 - Missing encrypted credential
 - Credential decryption failure
@@ -574,7 +549,6 @@ The automation stops, skips processing, or enables the removal safety lock when 
 - Failed final tag-membership verification
 - An asset scheduled for removal also appearing in the current target set
 
-</details>
 
 Errors and warnings are written to both the console and `sync_log.txt`.
 
