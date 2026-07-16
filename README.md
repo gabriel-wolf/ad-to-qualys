@@ -99,7 +99,7 @@ This verification prevents an accepted API response from being treated as proof 
 ## Successful Execution Examples
 
 > [!NOTE]
-> Your output will depend on what you booleans you have set to true/false. 
+> Your output will depend on what parameters you have set in the code. These examples have been sanitized. 
 
 
 <img src="./imgs/getqualysasset-1.svg"
