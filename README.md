@@ -96,10 +96,10 @@ This verification prevents an accepted API response from being treated as proof 
 
 ---
 
-## Successful Execution Examples
+## Successful Execution Example
 
 > [!NOTE]
-> Your output will depend on what parameters you have set in the code. These examples have been sanitized. 
+> Your output will depend on what parameters you have set in the code. All examples have been sanitized. 
 
 
 <img src="./imgs/ad-to-qualys-sanitized-condensed.svg"
@@ -156,6 +156,11 @@ The script:
 - Displays the returned Host Asset ID
 - Displays the asset name
 - Displays the current tracking IP when available
+
+<img src="./imgs/getqualysasset-1.svg"
+     alt="Sanitized AD-to-Qualys automation console output"
+     width="100%">
+
 
 
 ### [`Schedule-Task.ps1`](Schedule-Task.ps1)
