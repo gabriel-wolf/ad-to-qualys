@@ -7,6 +7,7 @@ $QualysPlatform = "<qualysapi.qualys.com?"
 $TestDevice     = "<test-device-name>"
 $SecretPath = "<path-to-secret-enc>"
 
+
 if (-not (Test-Path $SecretPath)) {
     Throw "Error: Encrypted Qualys key not found at $SecretPath. Run the Saver script first."
 }
