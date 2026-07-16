@@ -1,0 +1,210 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1072" height="3570" viewBox="0 0 1072 3570" role="img" aria-label="Sanitized condensed console output">
+<style>.crt{font-family:ui-monospace,"JetBrains Mono","Cascadia Mono","Segoe UI Mono",Consolas,monospace;font-size:14px} text{dominant-baseline:alphabetic}</style>
+<rect width="1072" height="3570" fill="transparent"/>
+<rect x="26" y="26" width="1026" height="3524" fill="black" fill-opacity="0.25"/>
+<rect x="20.5" y="20.5" width="1025" height="3523" fill="#333" stroke="#333"/>
+<rect x="21" y="21" width="1024" height="34" fill="#333"/>
+<path d="M 28,55 L 28,31 Q 28,26 33,26 L 183,26 Q 188,26 188,31 L 188,55 Z" fill="#0c0c0c"/>
+<polyline points="36,35.5 40,39.5 36,43.5" fill="none" stroke="#cccccc" stroke-width="1.2"/>
+<line x1="43" y1="44" x2="49" y2="44" stroke="#cccccc" stroke-width="1.2"/>
+<line x1="926" y1="39.5" x2="936" y2="39.5" stroke="#cccccc" stroke-width="1.2"/>
+<rect x="972" y="34.5" width="10" height="10" fill="none" stroke="#cccccc" stroke-width="1.2"/>
+<line x1="1018" y1="34.5" x2="1028" y2="44.5" stroke="#cccccc" stroke-width="1.3"/>
+<line x1="1028" y1="34.5" x2="1018" y2="44.5" stroke="#cccccc" stroke-width="1.3"/>
+<rect x="21" y="55" width="1024" height="3494" fill="#0c0c0c"/>
+<g transform="translate(29 63)">
+<rect width="1008" height="3492" fill="#0c0c0c"/>
+<text class="crt" x="0" y="14" fill="#23d18b">[INIT] Qualys API credential loaded into process memory.</text>
+<text class="crt" x="0" y="32" fill="#29b8db">[2025-01-15 09:00:01] =========================================================</text>
+<text class="crt" x="0" y="50" fill="#29b8db">[2025-01-15 09:00:02] STARTING AUTOMATED AD-TO-QUALYS SYNC IN [WORKSTATION] MODE</text>
+<text class="crt" x="0" y="68" fill="#d4d4d4">[2025-01-15 09:00:03] Run Date: Thursday, July 48, 75</text>
+<text class="crt" x="0" y="86" fill="#29b8db">[2025-01-15 09:00:04] =========================================================</text>
+<text class="crt" x="0" y="104" fill="#d4d4d4">[2025-01-15 09:00:05] Loaded 120 configured OU target(s).</text>
+<text class="crt" x="0" y="122" fill="#d4d4d4">[2025-01-15 09:00:06] Target AD group: EXAMPLE\Endpoint-Patching-Apply</text>
+<text class="crt" x="0" y="140" fill="#d4d4d4">[2025-01-15 09:00:07] Computer membership before reconciliation: 500</text>
+<text class="crt" x="0" y="158" fill="#666666">[2025-01-15 09:00:08] ---------------------------------------------------------</text>
+<text class="crt" x="0" y="176" fill="#d4d4d4">[2025-01-15 09:00:09] Evaluating configured OU: DEPT-ALPHA</text>
+<text class="crt" x="0" y="194" fill="#d4d4d4">[2025-01-15 09:00:10]  Found 2468 eligible workstations.</text>
+<text class="crt" x="0" y="212" fill="#f5f543">[2025-01-15 09:00:11]  Skipped 13579 servers.</text>
+<text class="crt" x="0" y="230" fill="#666666">[2025-01-15 09:00:12] ---------------------------------------------------------</text>
+<text class="crt" x="0" y="248" fill="#d4d4d4">[2025-01-15 09:00:13] Evaluating configured OU: DEPT-BRAVO</text>
+<text class="crt" x="0" y="266" fill="#d4d4d4">[2025-01-15 09:00:14]  Found 12 eligible workstations.</text>
+<text class="crt" x="0" y="284" fill="#f5f543">[2025-01-15 09:00:15]  Skipped 24 servers.</text>
+<text class="crt" x="0" y="302" fill="#666666">[2025-01-15 09:00:16] ---------------------------------------------------------</text>
+<text class="crt" x="0" y="320" fill="#d4d4d4">[2025-01-15 09:00:17] Evaluating configured OU: DEPT-CHARLIE</text>
+<text class="crt" x="0" y="338" fill="#d4d4d4">[2025-01-15 09:00:18]  Found 120 eligible workstations.</text>
+<text class="crt" x="0" y="356" fill="#f5f543">[2025-01-15 09:00:19]  Skipped 240 servers.</text>
+<text class="crt" x="0" y="374" fill="#666666">[2025-01-15 09:00:20] ---------------------------------------------------------</text>
+<text class="crt" x="0" y="392" fill="#d4d4d4">[2025-01-15 09:00:21] Evaluating configured OU: DEPT-DELTA</text>
+<text class="crt" x="0" y="410" fill="#d4d4d4">[2025-01-15 09:00:22]  Found 1234 eligible workstations.</text>
+<text class="crt" x="0" y="428" fill="#f5f543">[2025-01-15 09:00:23]  Skipped 2468 servers.</text>
+<text class="crt" x="0" y="446" fill="#666666">[2025-01-15 09:00:24] ---------------------------------------------------------</text>
+<text class="crt" x="0" y="464" fill="#d4d4d4">[2025-01-15 09:00:25] Evaluating configured OU: DEPT-ECHO</text>
+<text class="crt" x="0" y="482" fill="#d4d4d4">[2025-01-15 09:00:26]  Found 7 eligible workstations.</text>
+<text class="crt" x="0" y="500" fill="#f5f543">[2025-01-15 09:00:27]  Skipped 12 servers.</text>
+<text class="crt" x="0" y="518" fill="#666666">[2025-01-15 09:00:28] ---------------------------------------------------------</text>
+<text class="crt" x="0" y="536" fill="#f5f543">[2025-01-15 09:00:29] ... additional configured OU evaluations omitted ...</text>
+<text class="crt" x="0" y="554" fill="#d4d4d4">[2025-01-15 09:00:30] Authoritative eligible computer count: 75</text>
+<text class="crt" x="0" y="572" fill="#d4d4d4">[2025-01-15 09:00:31] No eligible computers need to be added to the AD group.</text>
+<text class="crt" x="0" y="590" fill="#d4d4d4">[2025-01-15 09:00:32] No existing group members have fallen outside the configured OU scope.</text>
+<text class="crt" x="0" y="608" fill="#666666">[2025-01-15 09:00:33] ---------------------------------------------------------</text>
+<text class="crt" x="0" y="626" fill="#29b8db">[2025-01-15 09:00:34] ACTIVE DIRECTORY RECONCILIATION SUMMARY:</text>
+<text class="crt" x="0" y="644" fill="#d4d4d4">[2025-01-15 09:00:35]  Initial membership: 1234</text>
+<text class="crt" x="0" y="662" fill="#d4d4d4">[2025-01-15 09:00:36]  Authoritative eligible computers: 2468</text>
+<text class="crt" x="0" y="680" fill="#d4d4d4">[2025-01-15 09:00:37]  Computers added: 13579</text>
+<text class="crt" x="0" y="698" fill="#d4d4d4">[2025-01-15 09:00:38]  Computers removed: 987654321</text>
+<text class="crt" x="0" y="716" fill="#d4d4d4">[2025-01-15 09:00:39]  Final membership: 7</text>
+<text class="crt" x="0" y="734" fill="#f5f543">[2025-01-15 09:00:40] Exported 12 hostname(s) to &#x27;C:\Automation\ad-to-qualys\hosts.txt&#x27;.</text>
+<text class="crt" x="0" y="752" fill="#d4d4d4">[2025-01-15 09:00:41] Searching Qualys for tag &#x27;Endpoint Patch Tag&#x27;.</text>
+<text class="crt" x="0" y="770" fill="#d4d4d4">[2025-01-15 09:00:42] Resolved Qualys tag &#x27;Endpoint Patch Tag&#x27; to ID 48.</text>
+<text class="crt" x="0" y="788" fill="#29b8db">[2025-01-15 09:00:43] =========================================================</text>
+<text class="crt" x="0" y="806" fill="#29b8db">[2025-01-15 09:00:44] COLLECTING CURRENT AD MEMBERS FROM DEPARTMENT QUALYS TAGS</text>
+<text class="crt" x="0" y="824" fill="#29b8db">[2025-01-15 09:00:45] =========================================================</text>
+<text class="crt" x="0" y="842" fill="#d4d4d4">[2025-01-15 09:00:46] Searching Qualys for tag &#x27;MSAD-DEPT-ALPHA&#x27;.</text>
+<text class="crt" x="0" y="860" fill="#d4d4d4">[2025-01-15 09:00:47] Resolved Qualys tag &#x27;MSAD-DEPT-ALPHA&#x27; to ID 987.</text>
+<text class="crt" x="0" y="878" fill="#d4d4d4">[2025-01-15 09:00:48] [MSAD-DEPT-ALPHA] Fetching Qualys asset batch 1234.</text>
+<text class="crt" x="0" y="896" fill="#d4d4d4">[2025-01-15 09:00:49] Collected 2468 unique asset(s) from Qualys tag &#x27;MSAD-DEPT-ALPHA&#x27;.</text>
+<text class="crt" x="0" y="914" fill="#d4d4d4">[2025-01-15 09:00:50] Searching Qualys for tag &#x27;MSAD-dept-alpha&#x27;.</text>
+<text class="crt" x="0" y="932" fill="#d4d4d4">[2025-01-15 09:00:51] Searching Qualys for tag &#x27;MSAD-DEPT-BRAVO&#x27;.</text>
+<text class="crt" x="0" y="950" fill="#d4d4d4">[2025-01-15 09:00:52] Searching Qualys for tag &#x27;MSAD-dept-bravo&#x27;.</text>
+<text class="crt" x="0" y="968" fill="#d4d4d4">[2025-01-15 09:00:53] Resolved Qualys tag &#x27;MSAD-dept-bravo&#x27; to ID 12.</text>
+<text class="crt" x="0" y="986" fill="#d4d4d4">[2025-01-15 09:00:54] [MSAD-dept-bravo] Fetching Qualys asset batch 24.</text>
+<text class="crt" x="0" y="1004" fill="#d4d4d4">[2025-01-15 09:00:55] Collected 48 unique asset(s) from Qualys tag &#x27;MSAD-dept-bravo&#x27;.</text>
+<text class="crt" x="0" y="1022" fill="#d4d4d4">[2025-01-15 09:00:56] Searching Qualys for tag &#x27;MSAD-DEPT-CHARLIE&#x27;.</text>
+<text class="crt" x="0" y="1040" fill="#d4d4d4">[2025-01-15 09:00:57] Searching Qualys for tag &#x27;MSAD-dept-charlie&#x27;.</text>
+<text class="crt" x="0" y="1058" fill="#d4d4d4">[2025-01-15 09:00:58] Resolved Qualys tag &#x27;MSAD-dept-charlie&#x27; to ID 240.</text>
+<text class="crt" x="0" y="1076" fill="#d4d4d4">[2025-01-15 09:00:59] [MSAD-dept-charlie] Fetching Qualys asset batch 500.</text>
+<text class="crt" x="0" y="1094" fill="#d4d4d4">[2025-01-15 09:01:00] Collected 987 unique asset(s) from Qualys tag &#x27;MSAD-dept-charlie&#x27;.</text>
+<text class="crt" x="0" y="1112" fill="#d4d4d4">[2025-01-15 09:01:01] Searching Qualys for tag &#x27;MSAD-DEPT-DELTA&#x27;.</text>
+<text class="crt" x="0" y="1130" fill="#d4d4d4">[2025-01-15 09:01:02] Searching Qualys for tag &#x27;MSAD-dept-delta&#x27;.</text>
+<text class="crt" x="0" y="1148" fill="#d4d4d4">[2025-01-15 09:01:03] Resolved Qualys tag &#x27;MSAD-dept-delta&#x27; to ID 13579.</text>
+<text class="crt" x="0" y="1166" fill="#d4d4d4">[2025-01-15 09:01:04] [MSAD-dept-delta] Fetching Qualys asset batch 987654321.</text>
+<text class="crt" x="0" y="1184" fill="#d4d4d4">[2025-01-15 09:01:05] Collected 7 unique asset(s) from Qualys tag &#x27;MSAD-dept-delta&#x27;.</text>
+<text class="crt" x="0" y="1202" fill="#d4d4d4">[2025-01-15 09:01:06] Searching Qualys for tag &#x27;MSAD-DEPT-ECHO&#x27;.</text>
+<text class="crt" x="0" y="1220" fill="#d4d4d4">[2025-01-15 09:01:07] Searching Qualys for tag &#x27;MSAD-dept-echo&#x27;.</text>
+<text class="crt" x="0" y="1238" fill="#d4d4d4">[2025-01-15 09:01:08] Resolved Qualys tag &#x27;MSAD-dept-echo&#x27; to ID 48.</text>
+<text class="crt" x="0" y="1256" fill="#d4d4d4">[2025-01-15 09:01:09] [MSAD-dept-echo] Fetching Qualys asset batch 75.</text>
+<text class="crt" x="0" y="1274" fill="#d4d4d4">[2025-01-15 09:01:10] Collected 120 unique asset(s) from Qualys tag &#x27;MSAD-dept-echo&#x27;.</text>
+<text class="crt" x="0" y="1292" fill="#d4d4d4">[2025-01-15 09:01:11] Searching Qualys for tag &#x27;MSAD-DEPT-ECHO&#x27;.</text>
+<text class="crt" x="0" y="1310" fill="#d4d4d4">[2025-01-15 09:01:12] Searching Qualys for tag &#x27;MSAD-dept-echo&#x27;.</text>
+<text class="crt" x="0" y="1328" fill="#d4d4d4">[2025-01-15 09:01:13] Resolved Qualys tag &#x27;MSAD-dept-echo&#x27; to ID 987.</text>
+<text class="crt" x="0" y="1346" fill="#d4d4d4">[2025-01-15 09:01:14] [MSAD-dept-echo] Fetching Qualys asset batch 1234.</text>
+<text class="crt" x="0" y="1364" fill="#d4d4d4">[2025-01-15 09:01:15] Collected 2468 unique asset(s) from Qualys tag &#x27;MSAD-dept-echo&#x27;.</text>
+<text class="crt" x="0" y="1382" fill="#d4d4d4">[2025-01-15 09:01:16] Searching Qualys for tag &#x27;MSAD-DEPT-ECHO&#x27;.</text>
+<text class="crt" x="0" y="1400" fill="#d4d4d4">[2025-01-15 09:01:17] Searching Qualys for tag &#x27;MSAD-dept-echo&#x27;.</text>
+<text class="crt" x="0" y="1418" fill="#d4d4d4">[2025-01-15 09:01:18] Resolved Qualys tag &#x27;MSAD-dept-echo&#x27; to ID 7.</text>
+<text class="crt" x="0" y="1436" fill="#d4d4d4">[2025-01-15 09:01:19] [MSAD-dept-echo] Fetching Qualys asset batch 12.</text>
+<text class="crt" x="0" y="1454" fill="#d4d4d4">[2025-01-15 09:01:20] Collected 24 unique asset(s) from Qualys tag &#x27;MSAD-dept-echo&#x27;.</text>
+<text class="crt" x="0" y="1472" fill="#d4d4d4">[2025-01-15 09:01:21] Searching Qualys for tag &#x27;MSAD-DEPT-ECHO&#x27;.</text>
+<text class="crt" x="0" y="1490" fill="#d4d4d4">[2025-01-15 09:01:22] Searching Qualys for tag &#x27;MSAD-dept-echo&#x27;.</text>
+<text class="crt" x="0" y="1508" fill="#d4d4d4">[2025-01-15 09:01:23] Resolved Qualys tag &#x27;MSAD-dept-echo&#x27; to ID 120.</text>
+<text class="crt" x="0" y="1526" fill="#d4d4d4">[2025-01-15 09:01:24] [MSAD-dept-echo] Fetching Qualys asset batch 240.</text>
+<text class="crt" x="0" y="1544" fill="#d4d4d4">[2025-01-15 09:01:25] Collected 500 unique asset(s) from Qualys tag &#x27;MSAD-dept-echo&#x27;.</text>
+<text class="crt" x="0" y="1562" fill="#d4d4d4">[2025-01-15 09:01:26] Searching Qualys for tag &#x27;MSAD-DEPT-ECHO&#x27;.</text>
+<text class="crt" x="0" y="1580" fill="#d4d4d4">[2025-01-15 09:01:27] Searching Qualys for tag &#x27;MSAD-dept-echo&#x27;.</text>
+<text class="crt" x="0" y="1598" fill="#d4d4d4">[2025-01-15 09:01:28] Resolved Qualys tag &#x27;MSAD-dept-echo&#x27; to ID 2468.</text>
+<text class="crt" x="0" y="1616" fill="#d4d4d4">[2025-01-15 09:01:29] [MSAD-dept-echo] Fetching Qualys asset batch 13579.</text>
+<text class="crt" x="0" y="1634" fill="#d4d4d4">[2025-01-15 09:01:30] Collected 987654321 unique asset(s) from Qualys tag &#x27;MSAD-dept-echo&#x27;.</text>
+<text class="crt" x="0" y="1652" fill="#d4d4d4">[2025-01-15 09:01:31] Searching Qualys for tag &#x27;MSAD-DEPT-ECHO&#x27;.</text>
+<text class="crt" x="0" y="1670" fill="#d4d4d4">[2025-01-15 09:01:32] Searching Qualys for tag &#x27;MSAD-dept-echo&#x27;.</text>
+<text class="crt" x="0" y="1688" fill="#d4d4d4">[2025-01-15 09:01:33] Resolved Qualys tag &#x27;MSAD-dept-echo&#x27; to ID 24.</text>
+<text class="crt" x="0" y="1706" fill="#d4d4d4">[2025-01-15 09:01:34] [MSAD-dept-echo] Fetching Qualys asset batch 48.</text>
+<text class="crt" x="0" y="1724" fill="#d4d4d4">[2025-01-15 09:01:35] Collected 75 unique asset(s) from Qualys tag &#x27;MSAD-dept-echo&#x27;.</text>
+<text class="crt" x="0" y="1742" fill="#d4d4d4">[2025-01-15 09:01:36] Searching Qualys for tag &#x27;MSAD-DEPT-ECHO&#x27;.</text>
+<text class="crt" x="0" y="1760" fill="#d4d4d4">[2025-01-15 09:01:37] Searching Qualys for tag &#x27;MSAD-dept-echo&#x27;.</text>
+<text class="crt" x="0" y="1778" fill="#d4d4d4">[2025-01-15 09:01:38] Resolved Qualys tag &#x27;MSAD-dept-echo&#x27; to ID 500.</text>
+<text class="crt" x="0" y="1796" fill="#d4d4d4">[2025-01-15 09:01:39] [MSAD-dept-echo] Fetching Qualys asset batch 987.</text>
+<text class="crt" x="0" y="1814" fill="#d4d4d4">[2025-01-15 09:01:40] Collected 1234 unique asset(s) from Qualys tag &#x27;MSAD-dept-echo&#x27;.</text>
+<text class="crt" x="0" y="1832" fill="#d4d4d4">[2025-01-15 09:01:41] Searching Qualys for tag &#x27;MSAD-DEPT-ECHO&#x27;.</text>
+<text class="crt" x="0" y="1850" fill="#d4d4d4">[2025-01-15 09:01:42] Searching Qualys for tag &#x27;MSAD-dept-echo&#x27;.</text>
+<text class="crt" x="0" y="1868" fill="#d4d4d4">[2025-01-15 09:01:43] Resolved Qualys tag &#x27;MSAD-dept-echo&#x27; to ID 987654321.</text>
+<text class="crt" x="0" y="1886" fill="#d4d4d4">[2025-01-15 09:01:44] [MSAD-dept-echo] Fetching Qualys asset batch 7.</text>
+<text class="crt" x="0" y="1904" fill="#d4d4d4">[2025-01-15 09:01:45] [MSAD-dept-echo] Fetching Qualys asset batch 12.</text>
+<text class="crt" x="0" y="1922" fill="#d4d4d4">[2025-01-15 09:01:46] Collected 24 unique asset(s) from Qualys tag &#x27;MSAD-dept-echo&#x27;.</text>
+<text class="crt" x="0" y="1940" fill="#d4d4d4">[2025-01-15 09:01:47] Searching Qualys for tag &#x27;MSAD-DEPT-ECHO&#x27;.</text>
+<text class="crt" x="0" y="1958" fill="#d4d4d4">[2025-01-15 09:01:48] Searching Qualys for tag &#x27;MSAD-dept-echo&#x27;.</text>
+<text class="crt" x="0" y="1976" fill="#d4d4d4">[2025-01-15 09:01:49] Resolved Qualys tag &#x27;MSAD-dept-echo&#x27; to ID 120.</text>
+<text class="crt" x="0" y="1994" fill="#d4d4d4">[2025-01-15 09:01:50] [MSAD-dept-echo] Fetching Qualys asset batch 240.</text>
+<text class="crt" x="0" y="2012" fill="#d4d4d4">[2025-01-15 09:01:51] Collected 500 unique asset(s) from Qualys tag &#x27;MSAD-dept-echo&#x27;.</text>
+<text class="crt" x="0" y="2030" fill="#666666">[2025-01-15 09:01:52] ---------------------------------------------------------</text>
+<text class="crt" x="0" y="2048" fill="#29b8db">[2025-01-15 09:01:53] DEPARTMENT QUALYS TAG SEARCH SUMMARY:</text>
+<text class="crt" x="0" y="2066" fill="#23d18b">[2025-01-15 09:01:54] FOUND: DEPT-ALPHA, DEPT-BRAVO, DEPT-CHARLIE, DEPT-DELTA, DEPT-ECHO</text>
+<text class="crt" x="0" y="2084" fill="#f14c4c">[2025-01-15 09:01:55] NOT FOUND: None</text>
+<text class="crt" x="0" y="2102" fill="#d4d4d4">[2025-01-15 09:01:56] Add Qualys tag &#x27;Endpoint Patch Tag&#x27; for batch 987654321 of 7 containing 12 asset(s).</text>
+<text class="crt" x="0" y="2120" fill="#23d18b">[2025-01-15 09:01:57] SUCCESS: Qualys accepted batch 7 of 12.</text>
+<text class="crt" x="0" y="2138" fill="#d4d4d4">[2025-01-15 09:01:58] Add Qualys tag &#x27;Endpoint Patch Tag&#x27; for batch 12 of 24 containing 48 asset(s).</text>
+<text class="crt" x="0" y="2156" fill="#23d18b">[2025-01-15 09:01:59] SUCCESS: Qualys accepted batch 24 of 48.</text>
+<text class="crt" x="0" y="2174" fill="#d4d4d4">[2025-01-15 09:02:00] Add Qualys tag &#x27;Endpoint Patch Tag&#x27; for batch 48 of 75 containing 120 asset(s).</text>
+<text class="crt" x="0" y="2192" fill="#23d18b">[2025-01-15 09:02:01] SUCCESS: Qualys accepted batch 75 of 120.</text>
+<text class="crt" x="0" y="2210" fill="#d4d4d4">[2025-01-15 09:02:02] Add Qualys tag &#x27;Endpoint Patch Tag&#x27; for batch 120 of 240 containing 500 asset(s).</text>
+<text class="crt" x="0" y="2228" fill="#23d18b">[2025-01-15 09:02:03] SUCCESS: Qualys accepted batch 240 of 500.</text>
+<text class="crt" x="0" y="2246" fill="#d4d4d4">[2025-01-15 09:02:04] Add Qualys tag &#x27;Endpoint Patch Tag&#x27; for batch 500 of 987 containing 1234 asset(s).</text>
+<text class="crt" x="0" y="2264" fill="#23d18b">[2025-01-15 09:02:05] SUCCESS: Qualys accepted batch 987 of 1234.</text>
+<text class="crt" x="0" y="2282" fill="#f5f543">[2025-01-15 09:02:06] ... additional bulk tag batches omitted ...</text>
+<text class="crt" x="0" y="2300" fill="#23d18b">[2025-01-15 09:02:07] SUCCESS: Qualys accepted batch 2468 of 13579.</text>
+<text class="crt" x="0" y="2318" fill="#f14c4c">[2025-01-15 09:02:08] ERROR: Qualys tag add failed for batch 13579 of 987654321.</text>
+<text class="crt" x="0" y="2336" fill="#d4d4d4">[2025-01-15 09:02:09] Error details: The remote server returned an error: (987654321) Bad Request.</text>
+<text class="crt" x="0" y="2354" fill="#23d18b">[2025-01-15 09:02:10] SUCCESS: Qualys accepted batch 7 of 12.</text>
+<text class="crt" x="0" y="2372" fill="#29b8db">[2025-01-15 09:02:11] =========================================================</text>
+<text class="crt" x="0" y="2390" fill="#29b8db">[2025-01-15 09:02:12] RESOLVING 24 QUALYS STRAGGLER(S) BY HOSTNAME</text>
+<text class="crt" x="0" y="2408" fill="#d4d4d4">[2025-01-15 09:02:13] [STRAGGLER TAG ADD] Evaluating device: DEVICE-001</text>
+<text class="crt" x="0" y="2426" fill="#d4d4d4">[2025-01-15 09:02:14]    [TRYING ASSET NAME QUERY]: &#x27;device-75.example.edu&#x27;</text>
+<text class="crt" x="0" y="2444" fill="#d4d4d4">[2025-01-15 09:02:15]    [TRYING ASSET NAME QUERY]: &#x27;DEVICE-001.example.edu&#x27;</text>
+<text class="crt" x="0" y="2462" fill="#d4d4d4">[2025-01-15 09:02:16]    [TRYING ASSET NAME QUERY]: &#x27;device-240&#x27;</text>
+<text class="crt" x="0" y="2480" fill="#d4d4d4">[2025-01-15 09:02:17]    [TRYING ASSET NAME QUERY]: &#x27;DEVICE-001&#x27;</text>
+<text class="crt" x="0" y="2498" fill="#f14c4c">[2025-01-15 09:02:18]    [QUALYS ASSET NOT FOUND]: All four queries failed for &#x27;DEVICE-001&#x27;.</text>
+<text class="crt" x="0" y="2516" fill="#d4d4d4">[2025-01-15 09:02:19] [STRAGGLER TAG ADD] Evaluating device: DEVICE-002</text>
+<text class="crt" x="0" y="2534" fill="#d4d4d4">[2025-01-15 09:02:20]    [TRYING ASSET NAME QUERY]: &#x27;device-2468.example.edu&#x27;</text>
+<text class="crt" x="0" y="2552" fill="#d4d4d4">[2025-01-15 09:02:21]    [TRYING ASSET NAME QUERY]: &#x27;DEVICE-002.example.edu&#x27;</text>
+<text class="crt" x="0" y="2570" fill="#d4d4d4">[2025-01-15 09:02:22]    [TRYING ASSET NAME QUERY]: &#x27;device-987654321&#x27;</text>
+<text class="crt" x="0" y="2588" fill="#d4d4d4">[2025-01-15 09:02:23]    [TRYING ASSET NAME QUERY]: &#x27;DEVICE-002&#x27;</text>
+<text class="crt" x="0" y="2606" fill="#f14c4c">[2025-01-15 09:02:24]    [QUALYS ASSET NOT FOUND]: All four queries failed for &#x27;DEVICE-002&#x27;.</text>
+<text class="crt" x="0" y="2624" fill="#d4d4d4">[2025-01-15 09:02:25] [STRAGGLER TAG ADD] Evaluating device: DEVICE-003</text>
+<text class="crt" x="0" y="2642" fill="#d4d4d4">[2025-01-15 09:02:26]    [TRYING ASSET NAME QUERY]: &#x27;device-48.example.edu&#x27;</text>
+<text class="crt" x="0" y="2660" fill="#d4d4d4">[2025-01-15 09:02:27]    [TRYING ASSET NAME QUERY]: &#x27;DEVICE-003.example.edu&#x27;</text>
+<text class="crt" x="0" y="2678" fill="#d4d4d4">[2025-01-15 09:02:28]    [TRYING ASSET NAME QUERY]: &#x27;device-120&#x27;</text>
+<text class="crt" x="0" y="2696" fill="#d4d4d4">[2025-01-15 09:02:29]    [TRYING ASSET NAME QUERY]: &#x27;DEVICE-003&#x27;</text>
+<text class="crt" x="0" y="2714" fill="#f14c4c">[2025-01-15 09:02:30]    [QUALYS ASSET NOT FOUND]: All four queries failed for &#x27;DEVICE-003&#x27;.</text>
+<text class="crt" x="0" y="2732" fill="#d4d4d4">[2025-01-15 09:02:31] [STRAGGLER TAG ADD] Evaluating device: DEVICE-004</text>
+<text class="crt" x="0" y="2750" fill="#d4d4d4">[2025-01-15 09:02:32]    [TRYING ASSET NAME QUERY]: &#x27;device-1234.example.edu&#x27;</text>
+<text class="crt" x="0" y="2768" fill="#d4d4d4">[2025-01-15 09:02:33]    [TRYING ASSET NAME QUERY]: &#x27;DEVICE-004.example.edu&#x27;</text>
+<text class="crt" x="0" y="2786" fill="#d4d4d4">[2025-01-15 09:02:34]    [TRYING ASSET NAME QUERY]: &#x27;device-13579&#x27;</text>
+<text class="crt" x="0" y="2804" fill="#d4d4d4">[2025-01-15 09:02:35]    [TRYING ASSET NAME QUERY]: &#x27;DEVICE-004&#x27;</text>
+<text class="crt" x="0" y="2822" fill="#f14c4c">[2025-01-15 09:02:36]    [QUALYS ASSET NOT FOUND]: All four queries failed for &#x27;DEVICE-004&#x27;.</text>
+<text class="crt" x="0" y="2840" fill="#d4d4d4">[2025-01-15 09:02:37] [STRAGGLER TAG ADD] Evaluating device: DEVICE-005</text>
+<text class="crt" x="0" y="2858" fill="#d4d4d4">[2025-01-15 09:02:38]    [TRYING ASSET NAME QUERY]: &#x27;device-24.example.edu&#x27;</text>
+<text class="crt" x="0" y="2876" fill="#d4d4d4">[2025-01-15 09:02:39]    [TRYING ASSET NAME QUERY]: &#x27;DEVICE-005.example.edu&#x27;</text>
+<text class="crt" x="0" y="2894" fill="#d4d4d4">[2025-01-15 09:02:40]    [TRYING ASSET NAME QUERY]: &#x27;device-75&#x27;</text>
+<text class="crt" x="0" y="2912" fill="#d4d4d4">[2025-01-15 09:02:41]    [TRYING ASSET NAME QUERY]: &#x27;DEVICE-005&#x27;</text>
+<text class="crt" x="0" y="2930" fill="#f14c4c">[2025-01-15 09:02:42]    [QUALYS ASSET NOT FOUND]: All four queries failed for &#x27;DEVICE-005&#x27;.</text>
+<text class="crt" x="0" y="2948" fill="#f5f543">[2025-01-15 09:02:43] ... additional hostname lookup attempts omitted ...</text>
+<text class="crt" x="0" y="2966" fill="#d4d4d4">[2025-01-15 09:02:44] No computers were successfully removed from AD. Qualys tag removal was skipped.</text>
+<text class="crt" x="0" y="2984" fill="#29b8db">[2025-01-15 09:02:45] =========================================================</text>
+<text class="crt" x="0" y="3002" fill="#29b8db">[2025-01-15 09:02:46] VERIFYING FINAL QUALYS PATCH-MANAGEMENT TAG MEMBERSHIP</text>
+<text class="crt" x="0" y="3020" fill="#29b8db">[2025-01-15 09:02:47] =========================================================</text>
+<text class="crt" x="0" y="3038" fill="#d4d4d4">[2025-01-15 09:02:48] Searching Qualys for tag &#x27;Endpoint Patch Tag&#x27;.</text>
+<text class="crt" x="0" y="3056" fill="#d4d4d4">[2025-01-15 09:02:49] Resolved Qualys tag &#x27;Endpoint Patch Tag&#x27; to ID 7.</text>
+<text class="crt" x="0" y="3074" fill="#d4d4d4">[2025-01-15 09:02:50] [Endpoint Patch Tag] Fetching Qualys asset batch 12.</text>
+<text class="crt" x="0" y="3092" fill="#d4d4d4">[2025-01-15 09:02:51] [Endpoint Patch Tag] Fetching Qualys asset batch 24.</text>
+<text class="crt" x="0" y="3110" fill="#d4d4d4">[2025-01-15 09:02:52] Collected 48 unique asset(s) from Qualys tag &#x27;Endpoint Patch Tag&#x27;.</text>
+<text class="crt" x="0" y="3128" fill="#d4d4d4">[2025-01-15 09:02:53] Verified 75 asset(s) currently assigned to Qualys tag &#x27;Endpoint Patch Tag&#x27;.</text>
+<text class="crt" x="0" y="3146" fill="#f5f543">[2025-01-15 09:02:54] Exported 120 verified Qualys tag failure row(s) to &#x27;C:\Automation\ad-to-qualys\qualys_tag_fai</text>
+<text class="crt" x="0" y="3164" fill="#d4d4d4">lures.csv&#x27;.</text>
+<text class="crt" x="0" y="3182" fill="#666666">[2025-01-15 09:02:56] ---------------------------------------------------------</text>
+<text class="crt" x="0" y="3200" fill="#29b8db">[2025-01-15 09:02:57] FINAL AUTOMATION SUMMARY FOR [WORKSTATION] MODE:</text>
+<text class="crt" x="0" y="3218" fill="#d4d4d4">[2025-01-15 09:02:58]  Active Directory computers added: 1234</text>
+<text class="crt" x="0" y="3236" fill="#d4d4d4">[2025-01-15 09:02:59]  Active Directory computers removed: 2468</text>
+<text class="crt" x="0" y="3254" fill="#d4d4d4">[2025-01-15 09:03:00]  Final Active Directory group membership: 13579</text>
+<text class="crt" x="0" y="3272" fill="#d4d4d4">[2025-01-15 09:03:01]  Qualys assets evaluated from department tags: 987654321</text>
+<text class="crt" x="0" y="3290" fill="#d4d4d4">[2025-01-15 09:03:02]  Active Directory members matched through department tags: 7</text>
+<text class="crt" x="0" y="3308" fill="#d4d4d4">[2025-01-15 09:03:03]  Unique Qualys asset IDs resolved through department tags: 12</text>
+<text class="crt" x="0" y="3326" fill="#d4d4d4">[2025-01-15 09:03:04]  Active Directory members not matched through department tags: 24</text>
+<text class="crt" x="0" y="3344" fill="#d4d4d4">[2025-01-15 09:03:05]  Unmatched Active Directory members evaluated by hostname: 48</text>
+<text class="crt" x="0" y="3362" fill="#d4d4d4">[2025-01-15 09:03:06]  Unmatched Active Directory members resolved by hostname: 75</text>
+<text class="crt" x="0" y="3380" fill="#d4d4d4">[2025-01-15 09:03:07]  Unique Qualys asset IDs resolved by hostname: 120</text>
+<text class="crt" x="0" y="3398" fill="#d4d4d4">[2025-01-15 09:03:08]  Final Qualys tag membership verification successful: True</text>
+<text class="crt" x="0" y="3416" fill="#d4d4d4">[2025-01-15 09:03:09]  Verified Qualys asset IDs currently in target tag: 500</text>
+<text class="crt" x="0" y="3434" fill="#d4d4d4">[2025-01-15 09:03:10]  Qualys patch-management tag addition request successful: False</text>
+<text class="crt" x="0" y="3452" fill="#d4d4d4">[2025-01-15 09:03:11]  Qualys patch-management tag removal: Not required</text>
+<text class="crt" x="0" y="3470" fill="#29b8db">[2025-01-15 09:03:12] =========================================================</text>
+</g></svg>
