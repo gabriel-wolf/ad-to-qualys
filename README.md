@@ -102,7 +102,7 @@ This verification prevents an accepted API response from being treated as proof 
 > Your output will depend on what parameters you have set in the code. All examples have been sanitized. 
 
 
-<img src="./imgs/ad-to-qualys-sanitized-condensed.svg"
+<img src="./imgs/ad-to-qualys-sanitized-full.svg"
      alt="Sanitized AD-to-Qualys automation console output"
      width="100%">
 
