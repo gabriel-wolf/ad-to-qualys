@@ -552,6 +552,10 @@ Regenerate the encrypted credential whenever the execution account, Windows prof
 
 ## Required Configuration Files
 
+
+<details>
+  <summary>View Required Configuration Files</summary>
+
 The OU configuration files must be stored in the same directory as `Automation.ps1`.
 
 ### `<list-of-workstation-ous.txt>`
@@ -581,10 +585,15 @@ Each configured value must align with:
 - An OU beneath the configured Active Directory search base
 - A related Qualys dynamic tag following the `MSAD - <department>` convention
 
+</details>
+
 ---
 
 ## Generated Files
 
+<details>
+  <summary>View Generated Files</summary>
+     
 ### `hosts.txt`
 
 Contains the final computer names in the Active Directory GPO group after verified Qualys coverage enforcement.
@@ -605,47 +614,15 @@ Contains the encrypted Qualys credential created by `Initialize-QualysPassword.p
 
 This file must not be committed to source control.
 
----
-
-
-## Final Console Summary
-
-The final console output is grouped into:
-
-- **Active Directory GPO group:** additions, removals, failures, unchanged members with unknown coverage, and final membership
-- **Qualys Patch Management tag:** asset IDs added or removed, final verified membership, and verification status
-- **Coverage checks:** OU candidates, department matches, stale and server-classified exclusions, hostname fallback results, API-unknown devices, and CSV failure count
-
-Zero-value change lines are omitted.
-
----
-
-## Repository Structure
-
-```text
-.
-├── Automation.ps1
-├── Get-QualysAsset.ps1
-├── Initialize-QualysPassword.ps1
-├── Schedule-Task.ps1
-├── <list-of-workstation-ous.txt>
-├── <list-of-server-ous.txt>
-├── README.md
-└── imgs
-```
-
-Generated at runtime:
-
-```text
-hosts.txt
-sync_log.txt
-qualys_tag_failures.csv
-```
+</details>
 
 ---
 
 ## Requirements
 
+<details>
+  <summary>View Requirements</summary>
+     
 ### PowerShell and Windows
 
 - Windows PowerShell 5.1 or a compatible PowerShell environment
@@ -691,6 +668,8 @@ The execution host must be able to reach:
 - Active Directory domain controllers
 - Required DNS services
 - The configured Qualys API platform over HTTPS
+
+</details>
 
 ---
 
@@ -768,10 +747,10 @@ Query: customAttributes:(value:'OU=<DEPARTMENT>,DC=<EXAMPLE>,DC=<COM>')
 
 Example:
 
-```text
-Tag name: MSAD - finance
-Query: customAttributes:(value:'OU=FINANCE,DC=EXAMPLE,DC=COM')
-```
+<details>
+  <summary> View Example MSAD Tag</summary>
+  <img src="./imgs/example-dynamic-msad-tag.png" alt="Example MSAD Tag" width="50%">
+</details>
 
 The script checks both uppercase and lowercase department-name variants. Only one consistent variant needs to exist.
 
@@ -851,7 +830,7 @@ Qualys asset IDs are deduplicated before updates. A single AD computer may map t
 
 The automation stops, skips processing, or activates a safety lock for missing credentials or configuration, Active Directory query or membership failures, Qualys API and pagination errors, stale or missing assets, failed tag updates, and failed final verification.
 
-Errors and warnings are written to both the console and `sync_log.txt`.
+Errors and warnings are written to both the console, `sync_log.txt`, and `qualys_tag_failures.csv`.
 
 ---
 
