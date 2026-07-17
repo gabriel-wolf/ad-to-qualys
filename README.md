@@ -1,69 +1,109 @@
-# Automated AD-to-Qualys Patch Management Onboarding
+# Automated Active Directory-to-Qualys Patch Management Onboarding
 
 > **Author:** Gabriel Wolf
 
-Enterprise security automation for synchronizing Active Directory computer inventories with Qualys Patch Management.
+Enterprise security automation for maintaining coordinated patch-management scope across Active Directory and Qualys.
 
-The workflow discovers eligible workstation and server assets from designated Active Directory organizational units, synchronizes them with managed Active Directory security groups, resolves the corresponding Qualys Host Asset records, and applies the appropriate patch-management tags. Systems that leave the configured OU scope are removed from both the Active Directory group and the Qualys patch-management scope.
+The workflow discovers eligible workstation or server computers from configured Active Directory organizational units, resolves recent matching Qualys Host Asset records, applies the correct Qualys Patch Management tag, verifies final Qualys membership, and then synchronizes a dedicated Active Directory GPO group to devices with confirmed Qualys coverage.
 
 > [!NOTE]
-> This automation was developed for and is actively used in a large-scale enterprise environment. The public repository contains sanitized configuration values and excludes production credentials, internal infrastructure details, and organization-specific identifiers.
+> This repository contains sanitized configuration values and excludes production credentials, domains, hosts, group names, directory structures, service accounts, and organization-specific identifiers.
 
 ---
 
 ## Overview
 
-A computer may exist in Active Directory and have the Qualys Cloud Agent installed without being included in the correct patch-management scope.
+A computer can exist in Active Directory without being ready for Qualys-managed patching. It may not yet exist in Qualys, its Cloud Agent may not have checked in recently, or its patch-management tag assignment may fail.
 
-This project connects Active Directory and Qualys so that patch-management membership can be maintained from an authoritative OU configuration rather than through manual asset tagging.
+That distinction matters when an Active Directory group changes update policy. A device must not be placed into a group that exempts it from standard updates until Qualys patch coverage has actually been confirmed.
+
+This automation therefore treats the configured OU inventory as the authoritative candidate scope while treating the Active Directory GPO group as the final representation of verified Qualys patch coverage.
 
 ![Workflow diagram](/imgs/update-ad-to-qualys-diagram-3.drawio.png)
 
-The automation supports both workstation and server workflows while keeping their Active Directory groups, Qualys tags, OU lists, and operating-system filters separate.
+The same script supports separate workstation and server profiles with independent:
+
+- Active Directory groups
+- Qualys Patch Management tags
+- OU configuration files
+- Operating-system filters
+- Execution results
 
 ---
 
-## Workflow
+## Current Workflow
 
-### 1. Secure credential initialization
+### 1. Load the encrypted Qualys credential
 
-`Initialize-QualysPassword.ps1` prompts for the Qualys API credential as a PowerShell `SecureString` and stores an encrypted representation at the configured secret path:
+`Initialize-QualysPassword.ps1` prompts for the Qualys API password as a PowerShell `SecureString` and stores an encrypted representation at the configured secret path.
+
+Example sanitized path:
 
 ```text
 C:\ProgramData\QualysAutomation\qualys_password.enc
 ```
 
-On Windows, `ConvertFrom-SecureString` without a custom key uses Windows Data Protection API protection associated with the current Windows user context. The initialization script must therefore be run under the same Windows account that will execute the automation.
+On Windows, `ConvertFrom-SecureString` without a custom encryption key uses Windows Data Protection API protection associated with the current Windows user context.
 
-The saved credential is decrypted into process memory only when required for Qualys API authentication. It is not hardcoded in the scripts or stored in plaintext configuration.
+The initialization script must therefore be run under the same Windows account and profile that will execute the automation.
 
-### 2. Active Directory reconciliation
+The password is decrypted only into process memory when needed for Qualys API authentication. It is not hardcoded in the scripts or stored in plaintext configuration.
 
-`Automation.ps1` runs in either `Workstation` or `Server` mode and:
+### 2. Build the authoritative Active Directory candidate scope
+
+`Automation.ps1` runs in either `Workstation` or `Server` mode.
+
+It:
 
 1. Reads the corresponding OU configuration file.
-2. Recursively discovers computer objects in the configured OUs.
-3. Filters systems by operating-system type.
-4. Builds the authoritative membership set for the selected patch-management scope.
-5. Adds missing computers to the managed Active Directory group.
-6. Removes group members that are no longer in the configured OU scope.
-7. Enables a removal safety lock when any configured OU cannot be resolved or queried.
-8. Exports the reconciled group membership to `hosts.txt`.
+2. Resolves each configured OU beneath the configured search base.
+3. Recursively enumerates computer objects.
+4. Filters workstation and server systems according to the selected mode.
+5. Builds the authoritative set of OU-eligible computers.
+6. Identifies current Active Directory group members that have left the configured OU scope.
 
-### 3. Department-based Qualys resolution
+New OU-eligible computers are **not immediately added** to the Active Directory GPO group. They first have to pass Qualys resolution, freshness, tag assignment, and verification.
 
-For each configured department, the automation searches for both capitalization variants of the corresponding dynamic tag:
+### 3. Remove existing group members that left OU scope
+
+Current Active Directory GPO-group members that are no longer in the authoritative OU scope are removed when Active Directory removals are enabled.
+
+A removal safety lock prevents scope-based removals when any configured OU cannot be resolved or fully queried.
+
+Computers successfully removed for leaving OU scope can also have the Qualys Patch Management tag removed from their resolved Qualys assets.
+
+### 4. Exclude server-classified assets from workstation scope
+
+In `Workstation` mode, the script checks an editable list of Qualys tags that identify server assets. Devices found in any of those tags are excluded from the workstation Qualys Patch Management tag and the workstation Active Directory GPO group.
+
+This check applies only to workstation processing.
+
+### 5. Search department Qualys tags
+
+For each configured department or OU name, the automation searches both capitalization variants of the related dynamic Qualys tag:
 
 ```text
-AD - DEPARTMENT
-AD - department
+MSAD - DEPARTMENT
+MSAD - department
 ```
 
-It retrieves all paginated Qualys Host Asset records assigned to the matching department tag, normalizes each returned hostname, and accepts only assets whose hostname appears in the final Active Directory group.
+The script retrieves all paginated Qualys Host Asset records assigned to the matching department tag and normalizes each returned hostname.
 
-### 4. Hostname fallback resolution
+A matching Qualys asset is eligible only when:
 
-Any final Active Directory group member not matched through a department tag is resolved through the Qualys Host Asset API using four hostname variants:
+- Its normalized hostname appears in the authoritative OU candidate set.
+- Its `lastCheckedIn` value is available.
+- Its last check-in occurred within the configured freshness window (default 30 days).
+
+A device found in a department tag but stale is recorded as stale and excluded from both Qualys patch tagging and final Active Directory GPO-group membership.
+
+### 6. Resolve true hostname fallback devices
+
+Hostname fallback is performed only for authoritative OU candidates that were **not found in any department Qualys tag**.
+
+Devices already found in a department tag but rejected as stale are not searched again.
+
+Each true fallback device is searched using four hostname variants:
 
 ```text
 hostname.example.com
@@ -72,40 +112,58 @@ hostname
 HOSTNAME
 ```
 
-Returned Host Asset IDs are deduplicated before any tag update is submitted.
+Returned Qualys Host Asset IDs are deduplicated.
 
-### 5. Patch-management tag updates
+Transient `503 Server Unavailable` responses are retried silently using the configured delay schedule. When retries are exhausted, coverage is marked as unknown rather than missing.
 
-The automation:
+When recent matching assets are found, those asset IDs become eligible for the target Qualys Patch Management tag.
 
-- Applies the workstation or server patch-management tag in smaller batches.
-- Resolves computers successfully removed from Active Directory and removes the patch-management tag from their Qualys assets.
-- Excludes any asset from removal when it is still present in the current authoritative target set.
+### 7. Apply Qualys Patch Management tags
 
-### 6. Final verification and failure reporting
+Eligible Qualys Host Asset IDs are submitted in primary batches of up to 200.
 
-After tag updates complete, the automation re-queries the target Qualys patch-management tag and verifies actual final membership.
+When a 200-asset request fails, that failed batch is retried as groups of up to 25.
 
-Devices that cannot be resolved or whose resolved Host Asset IDs are not fully present in the final target tag are written to:
+If a 25-asset group also fails, only that failed group is retried one asset at a time.
 
-```text
-qualys_tag_failures.csv
-```
+Successful 25-asset groups are not retried again.
 
-This verification prevents an accepted API response from being treated as proof that every requested asset was successfully tagged.
+This isolates the exact Qualys asset IDs that are rejected without allowing one bad asset to cause the other valid assets in the same 25-device group to be excluded.
 
----
+Successful and failed asset IDs are tracked separately, and only individually rejected asset IDs remain failed.
+
+### 8. Verify final Qualys membership
+
+After all Qualys tag updates, the automation re-queries the target Patch Management tag.
+
+The script compares the actual final tag membership against the asset IDs expected to receive Qualys patching.
+
+An accepted update response is not treated as final proof of coverage. Final membership must be confirmed by the verification query.
+
+### 9. Synchronize the Active Directory GPO group
+
+Only after successful Qualys verification does the script synchronize the Active Directory GPO group.
+
+It:
+
+- Adds OU-eligible computers that have at least one recent, verified Qualys asset in the target Patch Management tag.
+- Leaves stale, unresolved, server-classified workstation candidates, and unverified devices outside the GPO group.
+- Removes existing GPO-group members that remain OU-eligible but no longer have verified recent Qualys coverage.
+- Leaves existing group members unchanged when coverage cannot be determined because Qualys API retries were exhausted.
+- Records failed Active Directory additions and removals.
+
+This ordering prevents a new device from being exempted from standard update policy before Qualys patch coverage has been confirmed.
+
+If final Qualys verification fails, coverage-based Active Directory additions and removals are blocked for that run.
 
 ## Successful Execution Example
 
 > [!NOTE]
-> Your output will depend on what parameters you have set in the code. All examples have been sanitized. 
-
+> This is a real production output. All example outputs have been sanitized. Output depends on the selected mode, configuration toggles, asset inventory, and current Qualys state.
 
 <img src="./imgs/ad-to-qualys-sanitized-full.svg"
-     alt="Sanitized AD-to-Qualys automation console output"
+     alt="Sanitized Active Directory-to-Qualys automation console output"
      width="100%">
-
 
 ---
 
@@ -113,71 +171,88 @@ This verification prevents an accepted API response from being treated as proof 
 
 ### [`Automation.ps1`](Automation.ps1)
 
-The main production automation script.
+The main automation script.
+
+Run workstation mode:
 
 ```powershell
 .\Automation.ps1 -TargetMode Workstation
 ```
 
+Run server mode:
+
 ```powershell
 .\Automation.ps1 -TargetMode Server
 ```
 
-It performs Active Directory reconciliation, department-tag discovery, hostname fallback resolution, batched Qualys tag updates, final membership verification, failure reporting, and operational logging.
+The script performs:
+
+- OU-based authoritative inventory discovery
+- Workstation or server filtering
+- Workstation exclusion based on configurable Qualys server-classification tags
+- Active Directory scope reconciliation
+- Department-tag asset collection
+- Qualys check-in freshness enforcement
+- True hostname fallback resolution with silent 503 retries
+- Optional target-tag clearing
+- Batched Qualys tag updates
+- Safe failed-batch isolation using 200, then 25, then individual retry only for failed 25-asset groups
+- Final Qualys membership verification
+- Verified-coverage-based Active Directory group synchronization
+- CSV failure and action reporting
+- Condensed operational logging
+- Final Active Directory and Qualys result summaries
 
 ### [`Initialize-QualysPassword.ps1`](Initialize-QualysPassword.ps1)
 
-Creates the encrypted Qualys credential used by the automation and diagnostic scripts.
+Creates the encrypted Qualys API credential used by the automation and diagnostic scripts.
 
-The script must be run under the same Windows account that will execute the scheduled automation unless the encrypted credential is regenerated under a new execution identity.
+The script must be run under the same Windows execution identity and profile that will run the scheduled automation unless the credential is regenerated for a different context.
 
-The credential is entered as a PowerShell `SecureString` and stored using Windows DPAPI protection associated with the current user context.
-
-This prevents the credential from being:
-
-- Hardcoded in PowerShell scripts
-- Stored in plaintext configuration
-- Committed to source control
-- Exposed through ordinary repository access
-
-The encrypted file and its containing directory should be restricted through appropriate filesystem permissions.
-
+The encrypted credential file and its containing directory should be protected with appropriate filesystem permissions.
 
 ### [`Get-QualysAsset.ps1`](Get-QualysAsset.ps1)
 
-A diagnostic utility for validating Qualys API connectivity and resolving an individual asset by hostname.
+A diagnostic utility for validating Qualys API connectivity and testing an individual hostname search.
 
-
-The script:
+It:
 
 - Loads the encrypted Qualys credential
-- Submits an XML Host Asset search request
-- Searches for an exact hostname match
+- Searches for an exact Host Asset name
 - Displays the returned Host Asset ID
 - Displays the asset name
-- Displays the current tracking IP when available
+- Displays additional returned asset details when available
 
 <img src="./imgs/getqualysasset-1.svg"
-     alt="Sanitized AD-to-Qualys automation console output"
+     alt="Sanitized individual Qualys asset lookup"
      width="100%">
-
-
 
 ### [`Schedule-Task.ps1`](Schedule-Task.ps1)
 
-Registers the workstation and server automation runs in Windows Task Scheduler.
+Registers workstation and server automation runs in Windows Task Scheduler.
 
-The script:
+The scheduled-task execution account may need the following local or policy-delivered user right:
 
-- Stores environment-specific paths, schedules, and execution modes in a configurable variable block
-- Creates PowerShell task actions with an explicit execution-policy bypass
-- Creates daily triggers
-- Requires an active network connection before execution
-- Prompts for the service-account credential
-- Registers tasks with elevated privileges
-- Runs the tasks in the background whether or not the service account is signed in interactively
+```text
+Log on as a batch job
+```
 
-The scheduled-task service account may need to be granted the Log on as a batch job user right on the execution host and must not be included in Deny log on as a batch job.
+It must not be included in:
+
+```text
+Deny log on as a batch job
+```
+
+The account must:
+
+- Be able to decrypt the encrypted Qualys credential
+- Have the required Active Directory permissions
+- Have the required Qualys API permissions
+- Be allowed to run as a batch job
+- Have network access to Active Directory and Qualys
+
+Regenerate the encrypted credential whenever the execution account, Windows profile, host, or Qualys credential changes.
+
 
 ---
 
@@ -207,10 +282,10 @@ DATABASES
 
 Each non-empty line represents one OU name. Blank lines are ignored.
 
-The configured names must align with both:
+Each configured value must align with:
 
-- OUs located beneath the configured Active Directory search base
-- Qualys department dynamic tags using the `AD - <department>` naming convention
+- An OU beneath the configured Active Directory search base
+- A related Qualys dynamic tag following the `MSAD - <department>` convention
 
 ---
 
@@ -218,7 +293,7 @@ The configured names must align with both:
 
 ### `hosts.txt`
 
-Contains the final computer names from the reconciled Active Directory group.
+Contains the final computer names in the Active Directory GPO group after verified Qualys coverage enforcement.
 
 The file is overwritten during each run.
 
@@ -226,44 +301,102 @@ The file is overwritten during each run.
 
 Contains timestamped operational logs for:
 
-- Selected execution mode
+- Execution mode and enabled features
 - OU discovery and validation
-- Active Directory membership changes
-- Removal safety-lock activation
-- Department-tag searches and pagination
-- Hostname fallback queries
-- Batched Qualys tag updates
-- Final tag-membership verification
-- Execution summaries and errors
+- Active Directory scope changes
+- Qualys department-tag searches and pagination
+- Stale-asset exclusions
+- Hostname fallback processing
+- Target-tag clearing
+- Batched Qualys updates
+- Failed-batch retries
+- Final Qualys verification
+- Active Directory coverage enforcement
+- Errors and final summaries
 
-The file is appended to preserve a historical execution trail.
+The file is appended to preserve an execution history.
+
+When condensed output is enabled, repetitive per-device and per-batch console messages are suppressed. The underlying results continue to be tracked for reporting.
 
 ### `qualys_tag_failures.csv`
 
-Contains devices that were not fully verified in the configured Qualys patch-management tag.
+Contains devices that were not fully verified for the intended Qualys and Active Directory patch scope.
 
-The CSV includes:
+The CSV includes fields such as:
 
-- Device hostname
+- Device name
 - Associated department
 - Resolved Qualys Host Asset IDs
-- Failure status
+- Verification status
+- Active Directory group action
 - Failure description
 
-Possible failures include:
+Possible statuses and reasons include:
 
-- No matching Qualys Host Asset record
-- Qualys API lookup errors
+- No matching Qualys Host Asset
+- Matching Qualys assets were stale
+- Qualys API lookup errors and coverage-unknown results after retries
 - Failed tag-update batches
-- Resolved Host Asset IDs missing from the final verified target tag
+- Resolved asset IDs missing from the final target tag
+- Active Directory addition failure
+- Removed from Active Directory because verified Qualys coverage was missing
+- Active Directory removal failure
 
-Fully verified devices are excluded. The file is overwritten during each run.
+Fully verified devices with no failure condition are excluded from the failure CSV.
+
+The file is overwritten during each run.
 
 ### `<secret-directory>/<secret-file-name.enc>`
 
 Contains the encrypted Qualys credential created by `Initialize-QualysPassword.ps1`.
 
-This file must not be committed to the repository.
+This file must not be committed to source control.
+
+---
+
+## Final Console Summary
+
+The final output is divided into three sections.
+
+### Active Directory GPO group
+
+The heading dynamically displays the resolved Active Directory group name.
+
+Reported values include nonzero changes and the final membership count:
+
+- Devices added after Qualys coverage was verified
+- Devices that failed to be added
+- Devices removed after leaving OU scope
+- Devices removed because verified Qualys coverage was missing
+- Devices that failed to be removed
+- Existing members left unchanged because Qualys coverage was unknown
+- Final devices in the Active Directory GPO group
+
+Zero-value change lines may be omitted to keep the summary focused.
+
+### Qualys Patch Management tag
+
+The heading dynamically displays the selected Qualys tag name.
+
+Reported values include:
+
+- Qualys asset IDs added during the run
+- Qualys asset IDs removed during the run
+- Final verified Qualys asset IDs in the tag
+- Final Qualys verification result
+
+### Coverage checks
+
+Reported values include:
+
+- OU-eligible devices evaluated
+- Devices with recent coverage found through department tags
+- Stale Qualys devices excluded
+- Server-classified devices excluded from workstation scope
+- Devices checked through hostname fallback
+- Devices with recent coverage found through hostname fallback
+- Devices with unknown coverage after Qualys API retries
+- Failure rows written to the CSV
 
 ---
 
@@ -281,7 +414,7 @@ This file must not be committed to the repository.
 └── imgs
 ```
 
-Files generated during execution:
+Generated at runtime:
 
 ```text
 hosts.txt
@@ -300,7 +433,7 @@ qualys_tag_failures.csv
 - Active Directory PowerShell module
 - TLS 1.2 connectivity to the Qualys API
 
-Verify the Active Directory module with:
+Verify the Active Directory module:
 
 ```powershell
 Get-Module -ListAvailable ActiveDirectory
@@ -310,14 +443,14 @@ Get-Module -ListAvailable ActiveDirectory
 
 The execution account requires permission to:
 
-- Read the configured organizational units
+- Read configured organizational units
 - Read computer objects and operating-system attributes
 - Read the managed Active Directory groups
 - Enumerate group membership
 - Add computer objects to the managed groups
 - Remove computer objects from the managed groups
 
-Unrestricted domain-administrator access is not required. Delegate only the permissions needed for the designated OUs and groups.
+Unrestricted domain-administrator access is not required. Delegate only the permissions required for the configured OUs and groups.
 
 ### Qualys permissions
 
@@ -325,8 +458,9 @@ The Qualys API account requires permission to:
 
 - Search Host Asset records
 - Search and read tags
-- Read paginated assets associated with tags
-- Update Host Asset tag assignments
+- Read paginated Host Assets assigned to tags
+- Add Host Asset tag assignments
+- Remove Host Asset tag assignments
 
 Use the least-privileged Qualys role that supports these operations.
 
@@ -342,61 +476,92 @@ The execution host must be able to reach:
 
 ## Initial Setup
 
+<details>
+  <summary>Click to expand</summary>
+
 ### 1. Configure the environment
 
-Update the environment-specific values in `Automation.ps1`:
+Update the sanitized configuration variables in `Automation.ps1`:
 
 ```powershell
 $QualysUsername = "<your-api-username>"
-$QualysPlatform = "<qualysapi.qualys.com>"
-$SecretPath     = "<path-to-secret-enc>"
+$QualysPlatform = "<qualys-api-platform>"
+$SecretPath     = "<path-to-encrypted-secret>"
 
 $DnsSuffix        = "<example.com>"
 $OUMenuSearchBase = "<DC=example,DC=com>"
 
-$WorkstationADGroupDN = "<workstation-group-distinguished-name>"
-$ServerADGroupDN      = "<server-group-distinguished-name>"
+$WorkstationADGroupDN = "<workstation-gpo-group-distinguished-name>"
+$ServerADGroupDN      = "<server-gpo-group-distinguished-name>"
 
 $WorkstationQualysTag = "<workstation-patch-management-tag>"
 $ServerQualysTag      = "<server-patch-management-tag>"
 
+$QualysServerClassificationTags = @(
+    "<server-classification-tag-1>"
+    "<server-classification-tag-2>"
+)
+
 $WorkstationOUFileName = "<list-of-workstation-ous.txt>"
 $ServerOUFileName      = "<list-of-server-ous.txt>"
+
+$QualysLastSeenDays = 30
 ```
 
-Public repository values should remain sanitized and must not identify production service accounts, domains, hosts, groups, or directory structures.
+Operational toggles include:
+
+```powershell
+$ClearTargetQualysTagBeforeAdd
+$EnableADGroupAdditions
+$EnableADGroupRemovals
+$EnableDepartmentTagResolution
+$EnableStragglerResolution
+$EnableQualysTagAdditions
+$EnableQualysTagRemovals
+$CondensedOutput
+$RemoveUnverifiedDevicesFromAD
+```
+
+Retry and verification settings include:
+
+```powershell
+$QualysFallbackBatchSize
+$QualysVerificationAttempts
+$QualysVerificationDelaySeconds
+$Qualys503RetryDelaysSeconds
+```
 
 ### 2. Create the OU configuration files
 
-Create the workstation and server OU lists using the department names expected by both Active Directory and the Qualys department tags.
+Create the workstation and server OU lists using names expected by both Active Directory and the Qualys department tags.
 
-Blank lines are ignored.
+Blank lines are ignored. Duplicate names are deduplicated.
 
 ### 3. Create the Qualys department dynamic tags
 
-The `AD - <department>` convention is specific to this workflow and is not created automatically by Qualys.
+The `MSAD - <department>` naming convention is specific to this workflow and is not created automatically by Qualys.
 
-Create one dynamic tag for every department listed in either OU configuration file.
+Create one dynamic tag for each configured department.
 
 ```text
-Tag name: AD - <department>
+Tag name: MSAD - <department>
 Tag type: Dynamic
 Dynamic tag source: Asset Inventory
-Query: customAttributes:(value:'OU=<DEPARTMENT>,DC=<CONTOSO>,DC=<COM>')
+Query: customAttributes:(value:'OU=<DEPARTMENT>,DC=<EXAMPLE>,DC=<COM>')
 ```
 
 Example:
 
 ```text
-Tag name: AD - finance
-Query: customAttributes:(value:'OU=FINANCE,DC=CONTOSO,DC=COM')
+Tag name: MSAD - finance
+Query: customAttributes:(value:'OU=FINANCE,DC=EXAMPLE,DC=COM')
 ```
 
-The automation checks both uppercase and lowercase department variants, but only one consistent naming form needs to exist.
+The script checks both uppercase and lowercase department-name variants. Only one consistent variant needs to exist.
 
 ### 4. Initialize the Qualys credential
 
-Run the credential initialization script under the same account that will execute the automation:
+Run the initialization script under the same account that will execute the automation:
 
 ```powershell
 .\Initialize-QualysPassword.ps1
@@ -406,13 +571,13 @@ Confirm that the encrypted credential file was created at the configured secret 
 
 ### 5. Test an individual Qualys asset
 
-Set the test hostname inside `Get-QualysAsset.ps1` and run:
+Set a sanitized test hostname inside `Get-QualysAsset.ps1` and run:
 
 ```powershell
 .\Get-QualysAsset.ps1
 ```
 
-Confirm that the expected Host Asset ID and hostname are returned.
+Confirm that the expected Host Asset record is returned.
 
 ### 6. Test workstation mode
 
@@ -428,7 +593,7 @@ hosts.txt
 qualys_tag_failures.csv
 ```
 
-Confirm that the correct Active Directory group, OU file, and Qualys patch-management tag were selected.
+Confirm that the expected workstation OU file, Active Directory GPO group, and Qualys Patch Management tag were selected.
 
 ### 7. Test server mode
 
@@ -438,82 +603,105 @@ Confirm that the correct Active Directory group, OU file, and Qualys patch-manag
 
 Repeat the same validation for the server profile.
 
----
+  
+</details>
 
-## Scheduled Execution
-
-Use [`Schedule-Task.ps1`](Schedule-Task.ps1) to register the automation under a dedicated service account.
-
-The scheduled-task account must be the same account that ran `Initialize-QualysPassword.ps1`. Regenerate the encrypted credential whenever the execution account, host, Windows profile, or Qualys credential changes.
 
 ---
 
 ## Design and Safety
 
-### Authoritative OU scope
+<details>
+  <summary>Click to expand</summary>
 
-The configured OU list defines which computers should belong to each patch-management scope.
+### OU inventory is authoritative
 
-During each run:
+The configured OU list determines which computers are candidates for the selected workstation or server patch scope.
 
-- Eligible computers missing from the managed Active Directory group are added.
-- Existing group members outside the configured OU scope are removed.
-- Computers successfully removed from Active Directory are processed for Qualys tag removal.
+The existing Active Directory GPO group is not used as the sole source of candidates. This allows newly created or newly moved OU devices to be evaluated before they are members of the GPO group.
 
-This keeps the Active Directory group synchronized with the intended workstation or server scope.
+### The Active Directory group represents verified coverage
 
-### Removal safety lock
+A device is added to the Active Directory GPO group only after a recent Qualys Host Asset is found, the target Qualys tag is applied, and final tag membership is verified.
 
-If any configured OU cannot be resolved or queried, the script disables all removal operations for that run.
+This prevents the GPO group from exempting a device from standard updates before Qualys patching is available.
 
-It may continue processing valid additions, but it does not:
+### Stale assets are not hostname fallback devices
 
-- Remove computers from the Active Directory group
-- Remove the Qualys patch-management tag from former members
+A device found through its department tag but older than the configured check-in threshold is classified as stale.
 
-This reduces the risk of accidental mass removal caused by an incomplete authoritative scope.
+It is not searched again through the four hostname variants.
 
-### Department-first resolution
+### Hostname fallback is limited to true misses
 
-Department dynamic tags provide the primary Qualys lookup method. Hostname queries are used only for final Active Directory group members that were not matched through those tags.
+Individual hostname searches are used only when the OU-eligible computer was not found in any department tag.
 
-This reduces the number of individual API searches required for large inventories.
+This avoids thousands of unnecessary API requests for stale devices already identified through department tags.
 
-### Batched updates
+### Workstation scope excludes server-classified assets
 
-Host Asset IDs are submitted in smaller batches rather than one request per asset or one oversized inventory-wide request.
+In workstation mode, devices found in any configured Qualys server-classification tag are excluded from both workstation patch-management scopes.
 
-Each batch is logged independently.
+### Temporary Qualys failures do not trigger AD removal
 
-### Final membership verification
+Hostname lookups retry transient 503 responses. When all retries fail, new devices are not added, but existing Active Directory group members are left unchanged because coverage could not be determined.
 
-A successful API response confirms that Qualys accepted a request, but it does not independently prove that every requested asset now has the target tag.
+### Final verification controls Active Directory synchronization
 
-The workflow therefore re-queries the target patch-management tag after all updates and compares actual membership against the resolved Host Asset IDs.
+Coverage-based Active Directory additions and removals occur only after successful final Qualys verification.
 
-### Removal scope
+When verification fails, the script activates a safety lock and does not make coverage-based GPO-group changes.
 
-The script removes the Qualys patch-management tag only from computers successfully removed from the managed Active Directory group during the current run.
+### Failed Qualys batches preserve valid assets
 
-It does not independently purge every unexpected asset already present in the Qualys tag.
+A failed batch of 200 is retried as groups of up to 25.
+
+Successful 25-asset groups are accepted immediately.
+
+Only a failed 25-asset group is retried one asset at a time. This identifies the exact rejected Qualys asset IDs and prevents one unsupported or invalid asset from causing the other valid assets in that group to be excluded.
+
+The script does not use the slower recursive `200 → 25 → 5 → 1` pattern.
+
+### Optional full tag rebuild
+
+The target Qualys tag can be cleared before additions.
+
+This can provide deterministic rebuilding but increases API calls and execution time. The toggle should be chosen intentionally for scheduled operation.
+
+### Scope-removal safety lock
+
+When a configured OU cannot be resolved or queried, scope-based removal operations are blocked for that run.
+
+This protects against accidental mass removal caused by an incomplete authoritative inventory.
+
+### Duplicate Qualys asset IDs
+
+Multiple name variants or department tags can resolve to the same Qualys Host Asset ID.
+
+All collected IDs are deduplicated before tag updates.
+
+A single Active Directory computer can also correspond to more than one Qualys Host Asset ID. Final Active Directory membership counts and final Qualys asset-ID counts therefore do not have to be identical.
+
+  </details>
 
 ---
 
 ## Security Considerations
 
-- Do not hardcode credentials.
-- Do not commit encrypted credential files.
-- Run the workflow under a dedicated service account.
+- Never hardcode credentials.
+- Never commit encrypted credentials.
+- Keep public configuration values sanitized.
+- Run the workflow under a dedicated execution account.
 - Delegate only the required Active Directory permissions.
-- Limit the Qualys account to required Host Asset search, tag-read, and tag-update operations.
-- Restrict filesystem access to the scripts, credential file, logs, and generated reports.
-- Protect scheduled-task definitions and service-account credentials.
+- Limit the Qualys account to required Host Asset and tag operations.
+- Restrict filesystem access to scripts, credentials, logs, and reports.
+- Protect scheduled-task definitions and execution-account credentials.
 - Rotate the Qualys credential according to organizational policy.
-- Regenerate the encrypted credential after changing the execution account, host, Windows profile, or Qualys credential.
-- Treat the managed Active Directory groups as automation-controlled.
-- Keep OU configuration names aligned with the corresponding `AD - <department>` dynamic tags.
-- Validate dynamic-tag queries and removal behavior in a controlled environment before scheduled production use.
-- Treat logs, hostname exports, asset IDs, and failure reports as internal operational data.
+- Regenerate the encrypted credential after changing the execution identity or environment.
+- Treat the Active Directory GPO groups as automation-controlled.
+- Keep OU configuration names aligned with the related `MSAD - <department>` dynamic tags.
+- Validate full-tag clearing and removal behavior in a controlled environment.
+- Treat logs, hostnames, Qualys asset IDs, and failure reports as internal operational data.
 
 ---
 
@@ -539,28 +727,29 @@ test-output/
 
 ## Error Handling
 
-The automation stops, skips processing, or enables the removal safety lock when required to protect the managed scope.
+The automation stops, skips processing, or activates a safety lock when needed to protect the managed scope.
+
+Handled conditions include:
 
 - Missing encrypted credential
 - Credential decryption failure
 - Missing or empty OU configuration file
 - Missing Active Directory group
 - Failed group-membership enumeration
-- Unresolvable or ambiguous OU name
+- Unresolvable or ambiguous OU
 - Failed OU computer enumeration
-- Failed Active Directory group addition or removal
-- Qualys API communication failure
-- Missing target Qualys patch-management tag
-- Missing department-tag capitalization variants
+- Failed Active Directory addition or removal
+- Qualys API communication failure, including bounded 503 retries
+- Missing target Qualys Patch Management tag
+- Missing department-tag variants
 - Failed Host Asset pagination
 - Missing pagination metadata
-- Unmatched hostname
-- Failed Qualys tag-update batch
-- Failed final tag-membership verification
-- An asset scheduled for removal also appearing in the current target set
+- Stale, missing, or temporarily indeterminate Qualys assets
+- Failed Qualys tag-update batches
+- Failed final Qualys tag verification
+- Asset IDs protected from tag removal because they remain in the current target set
 
-
-Errors and warnings are written to both the console and `sync_log.txt`.
+Errors and warnings are written to the console and `sync_log.txt`.
 
 ---
 
@@ -568,4 +757,6 @@ Errors and warnings are written to both the console and `sync_log.txt`.
 
 This repository demonstrates an enterprise security automation pattern.
 
-Names, credentials, paths, domains, organizational units, groups, tags, and other environment-specific values shown in the public version are placeholders or sanitized examples. Review, test, and adapt the scripts to the security requirements of the target environment before use.
+Names, credentials, paths, domains, organizational units, departments, groups, tags, service accounts, and other environment-specific values shown in the public version are placeholders or sanitized examples.
+
+Review and test all scripts, permissions, dynamic-tag queries, update-policy behavior, and removal controls before using the workflow in another environment.
