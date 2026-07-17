@@ -19,7 +19,7 @@ That distinction matters because membership in the managed Active Directory GPO 
 
 The workflow therefore uses the configured OU inventory as the authoritative candidate scope and the Active Directory GPO group as the final representation of devices with verified Qualys patch coverage.
 
-![Workflow diagram](/imgs/update-ad-to-qualys-diagram-3.drawio.png)
+![Workflow diagram](/imgs/ad-to-qualys-diagram-7.drawio.png)
 
 The same script supports separate workstation and server profiles with independent:
 
