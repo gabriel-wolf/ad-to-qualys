@@ -503,19 +503,7 @@ Existing members that no longer have verified recent coverage can be removed. St
 
 ### [`Automation.ps1`](Automation.ps1)
 
-The main automation script.
-
-Run workstation mode:
-
-```powershell
-.\Automation.ps1 -TargetMode Workstation
-```
-
-Run server mode:
-
-```powershell
-.\Automation.ps1 -TargetMode Server
-```
+The main automation script. 
 
 The script handles OU discovery, operating-system filtering, server-tag exclusions, Qualys asset resolution, freshness checks, batched tag updates, final verification, Active Directory synchronization, logging, and failure reporting.
 
@@ -547,17 +535,7 @@ It:
 
 Registers workstation and server automation runs in Windows Task Scheduler.
 
-The scheduled-task execution account may need the following local or policy-delivered user right:
-
-```text
-Log on as a batch job
-```
-
-It must not be included in:
-
-```text
-Deny log on as a batch job
-```
+To run a scheduled task, the execution account requires the ```Log on as a batch job``` user right and must not be restricted by ```Deny log on as a batch job```.
 
 The account must:
 
@@ -817,31 +795,19 @@ Set a sanitized test hostname inside `Get-QualysAsset.ps1` and run:
 
 Confirm that the expected Host Asset record is returned.
 
-### 6. Test workstation mode
+### 6. Run Automation script
+
+Run workstation mode:
 
 ```powershell
 .\Automation.ps1 -TargetMode Workstation
 ```
 
-Review:
-
-```text
-sync_log.txt
-hosts.txt
-qualys_tag_failures.csv
-```
-
-Confirm that the expected workstation OU file, Active Directory GPO group, and Qualys Patch Management tag were selected.
-
-### 7. Test server mode
+Run server mode: 
 
 ```powershell
 .\Automation.ps1 -TargetMode Server
 ```
-
-Repeat the same validation for the server profile.
-
-  
 
 
 ---
