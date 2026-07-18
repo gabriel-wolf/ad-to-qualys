@@ -28,7 +28,6 @@ The same script supports separate workstation and server profiles with independe
 - Active Directory groups
 - Qualys Patch Management tags
 - OU configuration files
-- Operating-system filters
 - Execution results
 
 ---
