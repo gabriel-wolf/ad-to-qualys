@@ -21,7 +21,7 @@ The workflow therefore uses the configured OU inventory as the authoritative can
 
 ### Simplified Workflow Diagram
 
-![Workflow diagram](/imgs/full-diagram-2.png)
+![Workflow diagram](/imgs/main-svg-1.svg)
 
 The same script supports separate workstation and server profiles with independent:
 
