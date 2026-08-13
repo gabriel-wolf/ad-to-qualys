@@ -1,4 +1,5 @@
 # Automated Active Directory-to-Qualys Patch Management Onboarding
+![Status](https://img.shields.io/badge/Status-In%20Production-2ea44f?style=flat)
 ![Qualys](https://img.shields.io/badge/Qualys-ED1C24?style=flat&logo=qualys&logoColor=white)
 ![PowerShell](https://img.shields.io/badge/PowerShell-5391FE?style=flat&logo=iterm2&logoColor=white)
 
