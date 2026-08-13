@@ -1,4 +1,6 @@
 # Automated Active Directory-to-Qualys Patch Management Onboarding
+![Qualys](https://img.shields.io/badge/Qualys-ED1C24?style=flat&logo=qualys&logoColor=white)
+![PowerShell](https://img.shields.io/badge/PowerShell-5391FE?style=flat&logo=iterm2&logoColor=white)
 
 > **Author:** Gabriel Wolf
 
